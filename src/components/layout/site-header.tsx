@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NavItem } from "@/lib/types";
 
 type SiteHeaderProps = {
@@ -10,77 +10,18 @@ type SiteHeaderProps = {
   nav: NavItem[];
 };
 
-const navigationEventName = "ecotech:navigation-change";
-
-function ensureNavigationEvents() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const historyWithPatchFlag = window.history as History & { __ecotechNavigationPatched?: boolean };
-
-  if (historyWithPatchFlag.__ecotechNavigationPatched) {
-    return;
-  }
-
-  const dispatchNavigationChange = () => window.dispatchEvent(new Event(navigationEventName));
-  const originalPushState = window.history.pushState.bind(window.history);
-  const originalReplaceState = window.history.replaceState.bind(window.history);
-
-  window.history.pushState = function pushState(...args) {
-    originalPushState(...args);
-    dispatchNavigationChange();
-  };
-
-  window.history.replaceState = function replaceState(...args) {
-    originalReplaceState(...args);
-    dispatchNavigationChange();
-  };
-
-  window.addEventListener("popstate", dispatchNavigationChange);
-  historyWithPatchFlag.__ecotechNavigationPatched = true;
-}
-
-function subscribeToNavigation(onStoreChange: () => void) {
-  if (typeof window === "undefined") {
-    return () => undefined;
-  }
-
-  ensureNavigationEvents();
-  window.addEventListener(navigationEventName, onStoreChange);
-
-  return () => {
-    window.removeEventListener(navigationEventName, onStoreChange);
-  };
-}
-
-function getNavigationKey() {
-  if (typeof window === "undefined") {
-    return "server";
-  }
-
-  const historyState = window.history.state as { key?: string } | null;
-  return historyState?.key ?? window.location.pathname;
-}
-
 export function SiteHeader({ brand, nav }: SiteHeaderProps) {
   const pathname = usePathname();
-  const navigationKey = useSyncExternalStore(subscribeToNavigation, getNavigationKey, () => "server");
   const [menuState, setMenuState] = useState<{
     open: boolean;
-    openedAtNavigationKey: string | null;
     openedAtPathname: string | null;
   }>({
     open: false,
-    openedAtNavigationKey: null,
     openedAtPathname: null
   });
   const headerRef = useRef<HTMLDivElement | null>(null);
 
-  const open =
-    menuState.open &&
-    menuState.openedAtPathname === pathname &&
-    menuState.openedAtNavigationKey === navigationKey;
+  const open = menuState.open && menuState.openedAtPathname === pathname;
 
   useEffect(() => {
     if (open) {
@@ -104,13 +45,13 @@ export function SiteHeader({ brand, nav }: SiteHeaderProps) {
 
     const handlePointerDown = (event: PointerEvent) => {
       if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
-        setMenuState({ open: false, openedAtNavigationKey: null, openedAtPathname: null });
+        setMenuState({ open: false, openedAtPathname: null });
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setMenuState({ open: false, openedAtNavigationKey: null, openedAtPathname: null });
+        setMenuState({ open: false, openedAtPathname: null });
       }
     };
 
@@ -144,13 +85,13 @@ export function SiteHeader({ brand, nav }: SiteHeaderProps) {
             aria-expanded={open}
             aria-controls="site-menu"
             aria-label={open ? "Fechar menu principal" : "Abrir menu principal"}
-            onClick={() => {
-              setMenuState(() =>
-                open
-                  ? { open: false, openedAtNavigationKey: null, openedAtPathname: null }
-                  : { open: true, openedAtNavigationKey: navigationKey, openedAtPathname: pathname }
-              );
-            }}
+            onClick={() =>
+              setMenuState((currentState) =>
+                currentState.open && currentState.openedAtPathname === pathname
+                  ? { open: false, openedAtPathname: null }
+                  : { open: true, openedAtPathname: pathname }
+              )
+            }
           >
             <span>{open ? "Fechar" : "Menu"}</span>
             <span className="grid gap-1" aria-hidden="true">
@@ -165,7 +106,7 @@ export function SiteHeader({ brand, nav }: SiteHeaderProps) {
               type="button"
               className="fixed inset-0 top-[4.75rem] z-40 bg-slate-950/8 backdrop-blur-[1px] md:hidden"
               aria-label="Fechar menu principal"
-              onClick={() => setMenuState({ open: false, openedAtNavigationKey: null, openedAtPathname: null })}
+              onClick={() => setMenuState({ open: false, openedAtPathname: null })}
             />
           ) : null}
 
@@ -189,7 +130,7 @@ export function SiteHeader({ brand, nav }: SiteHeaderProps) {
                     isActive ? "bg-emerald-100 text-emerald-700 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.12)]" : "text-slate-700"
                   }`}
                   aria-current={isActive ? "page" : undefined}
-                  onClick={() => setMenuState({ open: false, openedAtNavigationKey: null, openedAtPathname: null })}
+                  onClick={() => setMenuState({ open: false, openedAtPathname: null })}
                 >
                   {item.label}
                 </Link>

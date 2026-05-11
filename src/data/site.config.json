@@ -34,6 +34,10 @@
       "label": "Ecopontos"
     },
     {
+      "href": "/jogo",
+      "label": "Jogo"
+    },
+    {
       "href": "/fontes",
       "label": "Fontes"
     }
@@ -68,6 +72,12 @@
       "title": "EcoTech | Ecopontos em Araçatuba e região",
       "description": "Consulte os ecopontos em Araçatuba e cidades vizinhas com endereços, materiais aceitos, horários e mapa local para descarte correto.",
       "schemaType": "CollectionPage"
+    },
+    {
+      "path": "/jogo",
+      "title": "EcoTech | Jogo Educativo",
+      "description": "Jogue Missão Reciclar, um jogo educativo integrado ao EcoTech para aprender separação de resíduos e reciclagem de forma interativa.",
+      "schemaType": "WebPage"
     },
     {
       "path": "/fontes",

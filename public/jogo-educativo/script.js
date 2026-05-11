@@ -1,0 +1,2300 @@
+const canvas = document.querySelector("#gameCanvas");
+const ctx = canvas.getContext("2d");
+const levelEl = document.querySelector("#level");
+const scoreEl = document.querySelector("#score");
+const timeEl = document.querySelector("#time");
+const overlay = document.querySelector("#overlay");
+const startBtn = document.querySelector("#startBtn");
+const restartBtn = document.querySelector("#restartBtn");
+const moveButtons = document.querySelectorAll(".move-btn");
+const missionEl = document.querySelector("#mission");
+const progressTextEl = document.querySelector("#progressText");
+const carryTextEl = document.querySelector("#carryText");
+const comboTextEl = document.querySelector("#comboText");
+const lessonTextEl = document.querySelector("#lessonText");
+const pauseBtn = document.querySelector("#pauseBtn");
+const audioBtn = document.querySelector("#audioBtn");
+const perfBtn = document.querySelector("#perfBtn");
+const fpsMeter = document.querySelector("#fpsMeter");
+const phaseCardsEl = document.querySelector("#phaseCards");
+
+const BIN_W = 150;
+const BIN_H = 74;
+const ITEM_SIZE = 44;
+const PLAYER_W = 46;
+const PLAYER_H = 58;
+const BIN_DROP_H = 48;
+const TIP_BOX = { x: 14, y: 558, w: 466, h: 58 };
+const MAX_PARTICLES = 150;
+const MAX_MOTION_TRAILS = 10;
+const MAX_EXPLOSIONS = 3;
+const MAX_DELIVERY_BURSTS = 4;
+
+const keys = new Set();
+const heldDirections = new Set();
+const tintedIconCache = new Map();
+const mapImage = new Image();
+mapImage.src = "assets/park-background.png";
+mapImage.addEventListener("load", draw);
+const recycleIcon = new Image();
+recycleIcon.src = "assets/recycle.svg";
+recycleIcon.addEventListener("load", draw);
+const bins = [
+  { type: "papel", label: "PAPEL", color: "#2f6fed", x: 54, y: 48 },
+  { type: "plastico", label: "PLASTICO", color: "#d94d42", x: 248, y: 48 },
+  { type: "metal", label: "METAL", color: "#f4be32", x: 458, y: 48 },
+  { type: "vidro", label: "VIDRO", color: "#21996f", x: 660, y: 48 }
+];
+
+const itemTypes = [
+  { type: "papel", name: "jornal", color: "#b8d2ff", icon: "paper" },
+  { type: "papel", name: "caixa", color: "#d6b078", icon: "box" },
+  { type: "plastico", name: "garrafa", color: "#ff9e9a", icon: "bottle" },
+  { type: "plastico", name: "sacola", color: "#ffc1be", icon: "bag" },
+  { type: "metal", name: "lata", color: "#ffe08a", icon: "can" },
+  { type: "metal", name: "tampa", color: "#f7cb54", icon: "cap" },
+  { type: "vidro", name: "pote", color: "#8ee4c3", icon: "jar" },
+  { type: "vidro", name: "copo", color: "#afeed8", icon: "glass" }
+];
+
+const SAVE_KEY = "missao-reciclar-save-v1";
+
+const phaseConfigs = [
+  { name: "Parque Escola", target: 8, hazards: 2, time: 60, mission: "Separe os resíduos do parque", tint: "rgba(255, 248, 210, 0.08)", accent: "#24b77b", learnings: ["Papel limpo pode voltar como caderno.", "Separar por cor acelera a reciclagem."] },
+  { name: "Praça Central", target: 10, hazards: 3, time: 66, mission: "Limpe a praça antes do recreio", tint: "rgba(255, 225, 154, 0.14)", accent: "#f4be32", learnings: ["Metal reciclado economiza energia.", "Latas devem ir para a lixeira amarela."] },
+  { name: "Lago Sustentável", target: 12, hazards: 4, time: 72, mission: "Proteja a água e os animais", tint: "rgba(115, 211, 255, 0.16)", accent: "#2f6fed", learnings: ["Plástico no ambiente prejudica rios e lagos.", "Vidro pode ser reciclado muitas vezes."] },
+  { name: "Praia Limpa", target: 13, hazards: 5, time: 76, mission: "Retire resíduos antes que cheguem ao mar", tint: "rgba(56, 189, 248, 0.18)", accent: "#38bdf8", learnings: ["Plástico no mar ameaça peixes e aves.", "Praias limpas protegem turismo e biodiversidade."] },
+  { name: "Floresta Viva", target: 14, hazards: 5, time: 80, mission: "Proteja a trilha ecológica", tint: "rgba(34, 197, 94, 0.16)", accent: "#16a34a", learnings: ["Resíduos na mata podem causar incêndios.", "Vidro abandonado também fere animais."] },
+  { name: "Bairro Industrial", target: 15, hazards: 6, time: 84, mission: "Organize a coleta perto das fábricas", tint: "rgba(148, 163, 184, 0.2)", accent: "#64748b", learnings: ["Indústrias precisam separar resíduos corretamente.", "Metal reciclado reduz mineração e gasto energético."] },
+  { name: "Cooperativa Verde", target: 16, hazards: 6, time: 88, mission: "Ajude a cooperativa a fechar a triagem", tint: "rgba(250, 204, 21, 0.13)", accent: "#eab308", learnings: ["Cooperativas geram renda com reciclagem.", "Material limpo vale mais e é reaproveitado melhor."] },
+  { name: "Eco Desafio Final", target: 18, hazards: 7, time: 94, mission: "Complete a reciclagem da cidade", tint: "rgba(255, 255, 255, 0.12)", accent: "#21996f", learnings: ["Reciclar reduz resíduos enviados a aterros.", "A separação correta melhora toda a cadeia."] }
+];
+
+const educationTips = {
+  papel: "Papel e papelão vão na lixeira azul. Eles podem voltar como cadernos, caixas e embalagens.",
+  plastico: "Plástico vai na lixeira vermelha. Garrafas e sacolas precisam estar limpas e secas.",
+  metal: "Metal vai na lixeira amarela. Latas recicladas economizam muita energia.",
+  vidro: "Vidro vai na lixeira verde. Ele pode ser reciclado muitas vezes sem perder qualidade."
+};
+
+const scenery = [
+  { x: 26, y: 134, size: 42 },
+  { x: 868, y: 130, size: 52 },
+  { x: 72, y: 528, size: 52 },
+  { x: 828, y: 510, size: 50 },
+  { x: 520, y: 568, size: 38 },
+  { x: 742, y: 318, size: 34 },
+  { x: 170, y: 312, size: 32 }
+];
+
+const flowers = Array.from({ length: 45 }, (_, index) => ({
+  x: 28 + ((index * 73) % 890),
+  y: 154 + ((index * 59) % 452),
+  color: ["#f7d255", "#ffffff", "#ff9cab", "#8de0ff"][index % 4]
+}));
+
+let particles = [];
+let motionTrails = [];
+
+let player;
+let items;
+let hazards;
+let score;
+let level;
+let timeLeft;
+let carried;
+let running = false;
+let paused = false;
+let lastTime;
+let timerId;
+let animationId;
+let delivered = 0;
+let targetCount = 8;
+let combo = 1;
+let floatingTexts = [];
+let deliveryBursts = [];
+let explosions = [];
+let screenFlash = 0;
+let slowMoTime = 0;
+let shakeTime = 0;
+let shakeStrength = 0;
+let stepDustTimer = 0;
+let ambientTime = 0;
+let audioCtx;
+let audioMuted = false;
+let showPerf = false;
+let fps = 60;
+let fpsFrames = 0;
+let fpsLastTime = performance.now();
+let selectedLevel = 1;
+let saveData = loadSave();
+audioMuted = saveData.audioMuted;
+
+const ambientLeaves = Array.from({ length: 18 }, (_, index) => ({
+  x: (index * 137) % 960,
+  y: 170 + ((index * 89) % 430),
+  size: 3 + (index % 4),
+  speed: 8 + (index % 5) * 3,
+  drift: 16 + (index % 6) * 3,
+  phase: index * 0.7,
+  color: ["rgba(255,238,140,0.55)", "rgba(188,235,151,0.5)", "rgba(255,190,128,0.45)"][index % 3]
+}));
+
+function rectsTouch(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function isInForbiddenArea(rect) {
+  const paddedTip = {
+    x: TIP_BOX.x - 12,
+    y: TIP_BOX.y - 18,
+    w: TIP_BOX.w + 24,
+    h: TIP_BOX.h + 30
+  };
+  const recyclingStationArea = { x: 0, y: 0, w: canvas.width, h: 210 };
+  const nearAnyBin = bins.some((bin) => {
+    const dropZone = getBinDropZone(bin);
+    const safeZone = {
+      x: bin.x - 34,
+      y: bin.y - 16,
+      w: BIN_W + 68,
+      h: dropZone.y + dropZone.h - bin.y + 44
+    };
+    return rectsTouch(rect, safeZone);
+  });
+
+  return rectsTouch(rect, paddedTip) || rectsTouch(rect, recyclingStationArea) || nearAnyBin;
+}
+
+function randomOpenPosition(w, h) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const rect = {
+      x: rand(45, canvas.width - w - 35),
+      y: rand(170, canvas.height - h - 34),
+      w,
+      h
+    };
+    if (!isInForbiddenArea(rect)) return rect;
+  }
+
+  return { x: canvas.width - w - 70, y: canvas.height - h - 72, w, h };
+}
+
+function getBinDropZone(bin) {
+  return {
+    x: bin.x + 18,
+    y: bin.y + BIN_H + 32,
+    w: BIN_W - 36,
+    h: BIN_DROP_H
+  };
+}
+
+function playerFootPoint() {
+  return {
+    x: player.x + player.w / 2,
+    y: player.y + player.h - 5
+  };
+}
+
+function pointInEllipse(point, zone) {
+  const cx = zone.x + zone.w / 2;
+  const cy = zone.y + zone.h / 2;
+  const rx = zone.w / 2;
+  const ry = zone.h / 2;
+  const nx = (point.x - cx) / rx;
+  const ny = (point.y - cy) / ry;
+  return nx * nx + ny * ny <= 1;
+}
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalizeAngle(angle) {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+function directionToAngle(dx, dy) {
+  return Math.atan2(dx, dy);
+}
+
+function roundedRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function fillRoundedRect(x, y, w, h, r, color) {
+  ctx.fillStyle = color;
+  roundedRect(x, y, w, h, r);
+  ctx.fill();
+}
+
+function fillGradientRoundedRect(x, y, w, h, r, topColor, bottomColor) {
+  const gradient = ctx.createLinearGradient(0, y, 0, y + h);
+  gradient.addColorStop(0, topColor);
+  gradient.addColorStop(1, bottomColor);
+  ctx.fillStyle = gradient;
+  roundedRect(x, y, w, h, r);
+  ctx.fill();
+}
+
+function drawSoftEllipse(x, y, rx, ry, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function pushParticle(particle) {
+  particles.push(particle);
+  if (particles.length > MAX_PARTICLES) {
+    particles.splice(0, particles.length - MAX_PARTICLES);
+  }
+}
+
+function addParticles(x, y, color, amount = 12, power = 1) {
+  for (let i = 0; i < amount; i += 1) {
+    const angle = (Math.PI * 2 * i) / amount + Math.random() * 0.18;
+    const speed = rand(45, 120) * power;
+    pushParticle({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed * 0.75 - 42 * power,
+      life: 0.58 + Math.random() * 0.28,
+      maxLife: 0.82,
+      color,
+      size: rand(3, 7) * power,
+      rotation: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 8,
+      gravity: 150
+    });
+  }
+}
+
+function addSpark(x, y, color = "#facc15") {
+  pushParticle({
+    x,
+    y,
+    vx: rand(-42, 42),
+    vy: rand(-74, -18),
+    life: 0.32,
+    maxLife: 0.32,
+    color,
+    size: rand(2, 4),
+    rotation: Math.random() * Math.PI * 2,
+    spin: (Math.random() - 0.5) * 14,
+    gravity: 90,
+    shape: "spark"
+  });
+}
+
+function addDeliveryBurst(x, y, color) {
+  deliveryBursts.push({
+    x,
+    y,
+    color,
+    life: 0.72,
+    maxLife: 0.72,
+    phase: Math.random() * Math.PI * 2
+  });
+  if (deliveryBursts.length > MAX_DELIVERY_BURSTS) deliveryBursts.shift();
+  addParticles(x, y, color, 16, 1.18);
+  for (let i = 0; i < 6; i += 1) {
+    addSpark(x + rand(-14, 14), y + rand(-10, 8), i % 2 ? "#ffffff" : "#fff7a8");
+  }
+}
+
+function addExplosion(x, y) {
+  explosions.push({
+    x,
+    y,
+    life: 0.86,
+    maxLife: 0.86,
+    phase: Math.random() * Math.PI * 2
+  });
+  if (explosions.length > MAX_EXPLOSIONS) explosions.shift();
+
+  for (let i = 0; i < 24; i += 1) {
+    const angle = (Math.PI * 2 * i) / 24 + Math.random() * 0.12;
+    const speed = rand(110, 280);
+    pushParticle({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed * 0.78 - 42,
+      life: 0.48 + Math.random() * 0.44,
+      maxLife: 0.92,
+      color: ["#fff7a8", "#f97316", "#ef4444", "#111827"][i % 4],
+      size: rand(4, 10),
+      rotation: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 12,
+      gravity: i % 4 === 3 ? 55 : 185,
+      shape: i % 4 === 3 ? "smoke" : "spark"
+    });
+  }
+
+  for (let i = 0; i < 9; i += 1) {
+    addSpark(x + rand(-18, 18), y + rand(-14, 16), i % 2 ? "#ffffff" : "#facc15");
+  }
+}
+
+function addMotionTrail() {
+  if (!player || !player.walking) return;
+  const speed = Math.hypot(player.vx, player.vy);
+  if (speed < 70) return;
+  motionTrails.push({
+    x: player.x,
+    y: player.y,
+    facingAngle: player.facingAngle || 0,
+    life: 0.24,
+    maxLife: 0.24,
+    color: carried ? carried.color : "#b7f7d0"
+  });
+  if (motionTrails.length > MAX_MOTION_TRAILS) motionTrails.shift();
+}
+
+function addFloatingText(text, x, y, color = "#ffffff") {
+  floatingTexts.push({
+    text,
+    x,
+    y,
+    vy: -42,
+    life: 1,
+    maxLife: 1,
+    color
+  });
+}
+
+function strokeRoundedRect(x, y, w, h, r, color, width = 2) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  roundedRect(x, y, w, h, r);
+  ctx.stroke();
+}
+
+function makeItems(amount) {
+  const list = [];
+  for (let i = 0; i < amount; i += 1) {
+    const template = itemTypes[rand(0, itemTypes.length - 1)];
+    const position = randomOpenPosition(ITEM_SIZE, ITEM_SIZE);
+    list.push({
+      ...template,
+      ...position,
+      phase: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.35
+    });
+  }
+  return list;
+}
+
+function makeHazards(amount) {
+  const list = [];
+  const speed = 42 + Math.min(level, phaseConfigs.length) * 8;
+  for (let i = 0; i < amount; i += 1) {
+    const position = randomOpenPosition(66, 50);
+    list.push({
+      ...position,
+      vx: Math.random() > 0.5 ? speed : -speed,
+      phase: Math.random() * Math.PI * 2,
+      sparkTimer: Math.random() * 0.18
+    });
+  }
+  return list;
+}
+
+function makePlayer() {
+  return {
+    x: 460,
+    y: 540,
+    w: PLAYER_W,
+    h: PLAYER_H,
+    speed: 290,
+    vx: 0,
+    vy: 0,
+    invincible: 0,
+    facing: "down",
+    facingAngle: 0,
+    targetFacingAngle: 0,
+    visualLean: 0,
+    visualTurn: 0,
+    turnEnergy: 0,
+    walking: false,
+    walkCycle: 0
+  };
+}
+
+function newGame() {
+  ensureAudio();
+  cancelAnimationFrame(animationId);
+  clearInterval(timerId);
+  keys.clear();
+  heldDirections.clear();
+  syncMoveButtons();
+  player = makePlayer();
+  score = 0;
+  level = selectedLevel;
+  const phase = currentPhase();
+  timeLeft = phase.time;
+  carried = null;
+  delivered = 0;
+  targetCount = phase.target;
+  combo = 1;
+  paused = false;
+  motionTrails = [];
+  floatingTexts = [];
+  deliveryBursts = [];
+  explosions = [];
+  screenFlash = 0;
+  slowMoTime = 0;
+  shakeTime = 0;
+  shakeStrength = 0;
+  stepDustTimer = 0;
+  particles = [];
+  items = makeItems(targetCount);
+  hazards = makeHazards(phase.hazards);
+  running = true;
+  lastTime = performance.now();
+  overlay.classList.add("hidden");
+  pauseBtn.textContent = "Pausar";
+  setLesson("Separe cada resíduo pela cor certa. Azul: papel, vermelho: plástico, amarelo: metal, verde: vidro.");
+  updateHud();
+  timerId = setInterval(tickClock, 1000);
+  animationId = requestAnimationFrame(loop);
+  playSound("level");
+}
+
+function nextLevel() {
+  level += 1;
+  selectedLevel = Math.min(level, saveData.unlockedLevel);
+  renderPhaseCards();
+  const phase = currentPhase();
+  timeLeft += phase.time - 48;
+  player.x = 460;
+  player.y = 540;
+  player.vx = 0;
+  player.vy = 0;
+  carried = null;
+  delivered = 0;
+  targetCount = phase.target;
+  addParticles(player.x + player.w / 2, player.y + player.h / 2, "#f4be32");
+  addFloatingText(`Fase ${level}!`, player.x, player.y - 20, "#fff7a8");
+  items = makeItems(targetCount);
+  hazards = makeHazards(phase.hazards);
+  setLesson(`${phase.name}: ${phase.mission}.`);
+  updateHud();
+  playSound("level");
+}
+
+function tickClock() {
+  if (!running || paused) return;
+  timeLeft -= 1;
+  updateHud();
+  if (timeLeft <= 0) endGame("Tempo esgotado", "Tente separar mais residuos antes do tempo acabar.");
+}
+
+function updateHud() {
+  const phase = currentPhase();
+  levelEl.textContent = level;
+  scoreEl.textContent = score;
+  timeEl.textContent = Math.max(0, timeLeft);
+  missionEl.textContent = phase.mission;
+  progressTextEl.textContent = `${delivered}/${targetCount}`;
+  carryTextEl.textContent = carried ? `${carried.name} (${carried.type})` : "Nada";
+  comboTextEl.textContent = `x${combo}`;
+}
+
+function endGame(title, text) {
+  running = false;
+  paused = false;
+  keys.clear();
+  heldDirections.clear();
+  syncMoveButtons();
+  clearInterval(timerId);
+  overlay.innerHTML = `
+    <h2>${title}</h2>
+    <p>${text}<br>Pontuação final: <strong>${score}</strong></p>
+    <button data-action="new-game" type="button">Jogar de novo</button>
+  `;
+  overlay.classList.remove("hidden");
+  pauseBtn.textContent = "Pausar";
+  playSound(title.toLowerCase().includes("vitoria") ? "level" : "error");
+}
+
+function phaseLearningHtml(phase) {
+  return `<ul class="learning-list">${phase.learnings.map((item) => `<li>${item}</li>`).join("")}</ul>`;
+}
+
+function completePhase() {
+  const finishedLevel = level;
+  const phase = currentPhase();
+  completeLevelSave(finishedLevel, score);
+  running = false;
+  paused = false;
+  clearInterval(timerId);
+  keys.clear();
+  heldDirections.clear();
+  syncMoveButtons();
+
+  const finalPhase = finishedLevel >= phaseConfigs.length;
+  overlay.innerHTML = `
+    <h2>${finalPhase ? "Vitória!" : "Fase concluída"}</h2>
+    <p>${phase.name}<br>Pontuação atual: <strong>${score}</strong></p>
+    ${phaseLearningHtml(phase)}
+    <div class="overlay-actions">
+      ${finalPhase ? "" : `<button data-action="next-level" type="button">Próxima fase</button>`}
+      <button data-action="new-game" type="button">${finalPhase ? "Jogar de novo" : "Rejogar"}</button>
+    </div>
+  `;
+  overlay.classList.remove("hidden");
+  pauseBtn.textContent = "Pausar";
+  setLesson(finalPhase ? "Campanha concluída. Seu progresso foi salvo." : "Fase concluída. Veja os aprendizados e avance quando quiser.");
+  playSound(finalPhase ? "level" : "success");
+}
+
+function showPauseOverlay() {
+  overlay.innerHTML = `
+    <h2>Jogo pausado</h2>
+    <p>Ajuste o ritmo, respire e volte para completar a reciclagem.</p>
+    <div class="overlay-actions">
+      <button data-action="resume" type="button">Continuar</button>
+      <button data-action="new-game" type="button">Reiniciar</button>
+    </div>
+  `;
+  overlay.classList.remove("hidden");
+}
+
+function togglePause() {
+  if (!running) return;
+  paused = !paused;
+  keys.clear();
+  heldDirections.clear();
+  syncMoveButtons();
+  pauseBtn.textContent = paused ? "Continuar" : "Pausar";
+  if (paused) showPauseOverlay();
+  else overlay.classList.add("hidden");
+}
+
+function movePlayer(dt) {
+  if (!running || !player) return;
+
+  let dx = 0;
+  let dy = 0;
+  if (keys.has("arrowleft") || keys.has("a") || heldDirections.has("left")) dx -= 1;
+  if (keys.has("arrowright") || keys.has("d") || heldDirections.has("right")) dx += 1;
+  if (keys.has("arrowup") || keys.has("w") || heldDirections.has("up")) dy -= 1;
+  if (keys.has("arrowdown") || keys.has("s") || heldDirections.has("down")) dy += 1;
+
+  let targetVx = 0;
+  let targetVy = 0;
+  const wasWalking = player.walking;
+  if (dx !== 0 || dy !== 0) {
+    const length = Math.hypot(dx, dy);
+    targetVx = (dx / length) * player.speed;
+    targetVy = (dy / length) * player.speed;
+    if (Math.abs(dx) > Math.abs(dy)) player.facing = dx > 0 ? "right" : "left";
+    else player.facing = dy > 0 ? "down" : "up";
+    player.targetFacingAngle = directionToAngle(dx / length, dy / length);
+  }
+
+  const acceleration = 10.5;
+  const drag = dx === 0 && dy === 0 ? 14 : acceleration;
+  player.vx += (targetVx - player.vx) * Math.min(1, drag * dt);
+  player.vy += (targetVy - player.vy) * Math.min(1, drag * dt);
+  player.x += player.vx * dt;
+  player.y += player.vy * dt;
+  const speed = Math.hypot(player.vx, player.vy);
+  player.walking = speed > 18;
+  const turnDelta = normalizeAngle(player.targetFacingAngle - player.facingAngle);
+  player.facingAngle = normalizeAngle(player.facingAngle + turnDelta * Math.min(1, 8.5 * dt));
+  const targetTurnEnergy = Math.min(1, Math.abs(turnDelta) * 1.35);
+  player.turnEnergy += (targetTurnEnergy - player.turnEnergy) * Math.min(1, 12 * dt);
+  const targetLean = Math.max(-1, Math.min(1, player.vx / player.speed)) * 0.08;
+  player.visualLean += (targetLean - player.visualLean) * Math.min(1, 9 * dt);
+  const targetTurn = dx === 0 && dy === 0 ? 0 : Math.max(-1, Math.min(1, dx)) * 2.2;
+  player.visualTurn += (targetTurn - player.visualTurn) * Math.min(1, 10 * dt);
+  if (player.walking) {
+    player.walkCycle += dt * (7.5 + speed / 48);
+    stepDustTimer -= dt;
+    if (stepDustTimer <= 0) {
+      addStepDust();
+      addMotionTrail();
+      stepDustTimer = 0.16;
+    }
+  } else if (wasWalking) {
+    player.walkCycle = 0;
+  }
+
+  player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
+  player.y = Math.max(132, Math.min(canvas.height - player.h, player.y));
+  player.invincible = Math.max(0, player.invincible - dt);
+}
+
+function addStepDust() {
+  const footY = player.y + player.h - 3;
+  const centerX = player.x + player.w / 2;
+  const speed = Math.hypot(player.vx, player.vy);
+  for (let i = 0; i < 4; i += 1) {
+    pushParticle({
+      x: centerX + rand(-12, 12),
+      y: footY + rand(-2, 4),
+      vx: rand(-20, 20) - player.vx * 0.07,
+      vy: rand(-18, -5) - Math.min(32, speed * 0.05),
+      life: 0.34,
+      maxLife: 0.34,
+      color: "rgba(239, 224, 181, 0.9)",
+      size: rand(3, 7),
+      rotation: Math.random() * Math.PI,
+      spin: (Math.random() - 0.5) * 5,
+      gravity: 90
+    });
+  }
+}
+
+function updateWorld(dt) {
+  ambientTime += dt;
+  screenFlash = Math.max(0, screenFlash - dt * 2.8);
+  slowMoTime = Math.max(0, slowMoTime - dt);
+  shakeTime = Math.max(0, shakeTime - dt);
+
+  motionTrails = motionTrails
+    .map((trail) => ({
+      ...trail,
+      life: trail.life - dt
+    }))
+    .filter((trail) => trail.life > 0);
+  particles = particles
+    .map((particle) => ({
+      ...particle,
+      x: particle.x + particle.vx * dt,
+      y: particle.y + particle.vy * dt,
+      rotation: (particle.rotation || 0) + (particle.spin || 0) * dt,
+      vy: particle.vy + (particle.gravity || 160) * dt,
+      life: particle.life - dt
+    }))
+    .filter((particle) => particle.life > 0);
+
+  deliveryBursts = deliveryBursts
+    .map((burst) => ({
+      ...burst,
+      life: burst.life - dt
+    }))
+    .filter((burst) => burst.life > 0);
+
+  explosions = explosions
+    .map((explosion) => ({
+      ...explosion,
+      life: explosion.life - dt
+    }))
+    .filter((explosion) => explosion.life > 0);
+
+  floatingTexts = floatingTexts
+    .map((text) => ({
+      ...text,
+      y: text.y + text.vy * dt,
+      life: text.life - dt
+    }))
+    .filter((text) => text.life > 0);
+
+  hazards.forEach((hazard) => {
+    hazard.x += hazard.vx * dt;
+    if (hazard.x < 20 || hazard.x + hazard.w > canvas.width - 20) hazard.vx *= -1;
+    hazard.sparkTimer -= dt;
+    if (hazard.sparkTimer <= 0) {
+      const fuseX = hazard.x + hazard.w / 2 + 31 + Math.sin(ambientTime * 11 + hazard.phase) * 2.4;
+      const fuseY = hazard.y + hazard.h / 2 - 22 + Math.cos(ambientTime * 9 + hazard.phase) * 2;
+      addSpark(fuseX, fuseY, Math.random() > 0.45 ? "#facc15" : "#ef4444");
+      hazard.sparkTimer = 0.14 + Math.random() * 0.16;
+    }
+    if (rectsTouch(player, hazard) && player.invincible <= 0) {
+      score = Math.max(0, score - 35);
+      timeLeft = Math.max(0, timeLeft - 4);
+      combo = 1;
+      player.invincible = 1.2;
+      shakeTime = 0.44;
+      shakeStrength = 12;
+      screenFlash = 1;
+      slowMoTime = 0.14;
+      addExplosion(hazard.x + hazard.w / 2, hazard.y + hazard.h / 2);
+      addFloatingText("-4s", player.x, player.y - 10, "#ffb4ad");
+      setLesson("Atenção: evite as bombas. Elas representam riscos e atrasam a limpeza da cidade.");
+      playSound("boom");
+      updateHud();
+    }
+  });
+
+  if (!carried) {
+    const found = items.find((item) => rectsTouch(player, item));
+    if (found) {
+      carried = found;
+      items = items.filter((item) => item !== found);
+      addParticles(found.x + found.w / 2, found.y + found.h / 2, found.color, 18, 1.2);
+      for (let i = 0; i < 5; i += 1) addSpark(found.x + found.w / 2, found.y + found.h / 2, "#ffffff");
+      addFloatingText(found.name, found.x, found.y - 10, "#ffffff");
+      setLesson(educationTips[found.type]);
+      playSound("pickup");
+      updateHud();
+    }
+  } else {
+    const foot = playerFootPoint();
+    const bin = bins.find((target) => pointInEllipse(foot, getBinDropZone(target)));
+
+    if (bin) {
+      if (bin.type === carried.type) {
+        const gained = 120 * combo;
+        score += gained;
+        timeLeft += 3;
+        delivered += 1;
+        addFloatingText(`+${gained}`, player.x, player.y - 18, "#fff7a8");
+        addDeliveryBurst(player.x + player.w / 2, player.y + player.h / 2, bin.color);
+        screenFlash = Math.max(screenFlash, 0.28);
+        combo = Math.min(5, combo + 1);
+        setLesson(`Correto: ${educationTips[bin.type]}`);
+        playSound("success");
+      } else {
+        score = Math.max(0, score - 50);
+        timeLeft = Math.max(0, timeLeft - 5);
+        combo = 1;
+        shakeTime = 0.28;
+        shakeStrength = 8;
+        addFloatingText("lixeira errada", player.x - 18, player.y - 18, "#ffb4ad");
+        setLesson(`Quase! ${educationTips[carried.type]}`);
+        playSound("error");
+      }
+      carried = null;
+      updateHud();
+    }
+  }
+
+  if (items.length === 0 && !carried) {
+    completePhase();
+  }
+}
+
+function drawBackground() {
+  const phase = currentPhase();
+  if (mapImage.complete && mapImage.naturalWidth > 0) {
+    ctx.save();
+    ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = phase.tint;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    drawMapLight();
+    drawPhaseIdentity(phase);
+    drawEcoCenter();
+    drawAmbientLeaves();
+    drawVignette();
+    return;
+  }
+
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, "#9fd8b4");
+  sky.addColorStop(0.5, "#79c48f");
+  sky.addColorStop(1, "#62aa79");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawSunbeams();
+  drawLawnTexture();
+  drawPhaseIdentity(phase);
+  drawLake();
+  drawPaths();
+  drawEcoCenter();
+
+  flowers.forEach(drawFlower);
+
+  scenery.forEach(drawTree);
+  drawVignette();
+}
+
+function drawPhaseIdentity(phase) {
+  ctx.save();
+  if (level === 2) {
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = phase.accent;
+    ctx.lineWidth = 4;
+    for (let x = 120; x < 880; x += 84) {
+      ctx.beginPath();
+      ctx.moveTo(x, 190);
+      ctx.lineTo(x - 160, 630);
+      ctx.stroke();
+    }
+  } else if (level === 3) {
+    ctx.globalAlpha = 0.3;
+    const water = ctx.createLinearGradient(0, 300, 0, 610);
+    water.addColorStop(0, "rgba(47,111,237,0.2)");
+    water.addColorStop(1, "rgba(33,153,111,0.22)");
+    ctx.fillStyle = water;
+    ctx.beginPath();
+    ctx.ellipse(780, 430, 150, 86, -0.18, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (level === 4) {
+    ctx.globalAlpha = 0.42;
+    const sand = ctx.createLinearGradient(0, 400, 0, 640);
+    sand.addColorStop(0, "rgba(254, 240, 138, 0.24)");
+    sand.addColorStop(1, "rgba(251, 191, 36, 0.3)");
+    ctx.fillStyle = sand;
+    ctx.beginPath();
+    ctx.ellipse(185, 520, 210, 84, -0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 5;
+    for (let y = 390; y < 510; y += 34) {
+      ctx.beginPath();
+      ctx.moveTo(610, y);
+      ctx.quadraticCurveTo(720, y + 26, 920, y - 2);
+      ctx.stroke();
+    }
+  } else if (level === 5) {
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle = phase.accent;
+    for (let i = 0; i < 16; i += 1) {
+      const x = 80 + (i * 61) % 820;
+      const y = 230 + (i * 47) % 340;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 30, 10, (i % 4) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (level === 6) {
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = "#475569";
+    for (let i = 0; i < 8; i += 1) {
+      const x = 560 + i * 42;
+      const h = 55 + (i % 4) * 20;
+      fillRoundedRect(x, 210 - h, 30, h, 3, "#475569");
+      ctx.fillStyle = "rgba(203,213,225,0.55)";
+      ctx.fillRect(x + 7, 190 - h, 5, 5);
+      ctx.fillStyle = "#475569";
+    }
+    ctx.strokeStyle = "rgba(100,116,139,0.36)";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(60, 520);
+    ctx.lineTo(900, 430);
+    ctx.stroke();
+  } else if (level === 7) {
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = phase.accent;
+    ctx.lineWidth = 5;
+    for (let i = 0; i < 5; i += 1) {
+      ctx.strokeRect(110 + i * 150, 360 + (i % 2) * 35, 90, 54);
+      ctx.beginPath();
+      ctx.arc(155 + i * 150, 387 + (i % 2) * 35, 18, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else if (level >= 8) {
+    ctx.globalAlpha = 0.24;
+    ctx.fillStyle = "#102033";
+    for (let i = 0; i < 7; i += 1) {
+      const x = 610 + i * 44;
+      const h = 42 + (i % 3) * 18;
+      fillRoundedRect(x, 188 - h, 28, h, 4, "#102033");
+      ctx.fillStyle = "rgba(255,247,168,0.55)";
+      ctx.fillRect(x + 7, 160 - h, 4, 4);
+      ctx.fillStyle = "#102033";
+    }
+  }
+  ctx.restore();
+}
+
+function drawMapLight() {
+  ctx.save();
+  const glow = ctx.createRadialGradient(455, 315, 80, 455, 315, 430);
+  glow.addColorStop(0, "rgba(255, 246, 166, 0.22)");
+  glow.addColorStop(0.62, "rgba(255, 246, 166, 0.06)");
+  glow.addColorStop(1, "rgba(255, 246, 166, 0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.globalAlpha = 0.18 + Math.sin(ambientTime * 1.4) * 0.04;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.ellipse(102, 466, 32, 6, -0.18, 0, Math.PI * 2);
+  ctx.ellipse(112, 493, 24, 5, 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSvgIcon(image, x, y, size, color = "#ffffff", alpha = 1) {
+  if (!image.complete || image.naturalWidth === 0) return;
+  const cacheKey = `${Math.round(size)}:${color}`;
+  let offscreen = tintedIconCache.get(cacheKey);
+  if (!offscreen) {
+    offscreen = document.createElement("canvas");
+    offscreen.width = Math.ceil(size);
+    offscreen.height = Math.ceil(size);
+    const offCtx = offscreen.getContext("2d");
+    offCtx.drawImage(image, 0, 0, size, size);
+    offCtx.globalCompositeOperation = "source-in";
+    offCtx.fillStyle = color;
+    offCtx.fillRect(0, 0, size, size);
+    tintedIconCache.set(cacheKey, offscreen);
+  }
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(offscreen, x, y);
+  ctx.restore();
+}
+
+function drawAmbientLeaves() {
+  ambientLeaves.forEach((leaf) => {
+    const x = (leaf.x + ambientTime * leaf.speed) % (canvas.width + 40) - 20;
+    const y = leaf.y + Math.sin(ambientTime * 1.3 + leaf.phase) * leaf.drift;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(ambientTime * 2 + leaf.phase) * 0.8);
+    ctx.fillStyle = leaf.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, leaf.size * 1.8, leaf.size, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawSunbeams() {
+  const beam = ctx.createRadialGradient(80, 20, 10, 80, 20, 470);
+  beam.addColorStop(0, "rgba(255, 246, 170, 0.38)");
+  beam.addColorStop(1, "rgba(255, 246, 170, 0)");
+  ctx.fillStyle = beam;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = "#fff5a8";
+  ctx.beginPath();
+  ctx.moveTo(35, 0);
+  ctx.lineTo(190, canvas.height);
+  ctx.lineTo(245, canvas.height);
+  ctx.lineTo(82, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawLawnTexture() {
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  for (let y = 136; y < canvas.height; y += 26) {
+    for (let x = 0; x < canvas.width; x += 34) {
+      ctx.fillStyle = (x + y) % 3 === 0 ? "#ffffff" : "#1f744f";
+      ctx.beginPath();
+      ctx.ellipse(x + ((y * 3) % 22), y, 13, 3, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawLake() {
+  const water = ctx.createLinearGradient(0, 170, 0, 330);
+  water.addColorStop(0, "#85d7e6");
+  water.addColorStop(1, "#3da6c0");
+  ctx.save();
+  ctx.shadowColor = "rgba(14, 70, 88, 0.24)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = water;
+  ctx.beginPath();
+  ctx.ellipse(820, 286, 118, 70, -0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(792, 268, 62, 15, -0.08, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.32)";
+  ctx.beginPath();
+  ctx.ellipse(854, 314, 34, 6, -0.12, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawPaths() {
+  ctx.save();
+  ctx.strokeStyle = "#d8c69d";
+  ctx.lineWidth = 72;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-20, canvas.height - 38);
+  ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
+  ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#f0e3bc";
+  ctx.lineWidth = 54;
+  ctx.beginPath();
+  ctx.moveTo(-20, canvas.height - 38);
+  ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
+  ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(135, 105, 64, 0.22)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 12]);
+  ctx.beginPath();
+  ctx.moveTo(-20, canvas.height - 38);
+  ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
+  ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawEcoCenter() {
+  ctx.save();
+  ctx.shadowColor = "rgba(16,32,51,0.28)";
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 10;
+  fillGradientRoundedRect(20, 20, 920, 124, 8, "rgba(255,250,224,0.72)", "rgba(196,231,185,0.56)");
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = "rgba(102, 80, 42, 0.25)";
+  ctx.lineWidth = 4;
+  for (let x = 44; x < 914; x += 54) {
+    ctx.beginPath();
+    ctx.moveTo(x, 34);
+    ctx.lineTo(x + 18, 132);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  fillGradientRoundedRect(36, 116, 888, 28, 8, "rgba(117,86,48,0.76)", "rgba(75,55,35,0.82)");
+  fillGradientRoundedRect(350, 16, 264, 34, 8, "rgba(22,86,62,0.96)", "rgba(12,52,39,0.96)");
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("ESTACAO DE RECICLAGEM", 482, 39);
+
+  ctx.save();
+  ctx.globalAlpha = 0.26;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.ellipse(482, 86, 390, 36, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawVignette() {
+  const vignette = ctx.createRadialGradient(
+    canvas.width / 2,
+    canvas.height / 2,
+    170,
+    canvas.width / 2,
+    canvas.height / 2,
+    620
+  );
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(16,32,51,0.18)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawTree(tree) {
+  ctx.save();
+  ctx.shadowColor = "rgba(16,32,51,0.2)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 8;
+  fillRoundedRect(tree.x + tree.size * 0.38, tree.y + tree.size * 0.52, tree.size * 0.22, tree.size * 0.52, 5, "#7c5636");
+  ctx.fillStyle = "#1f774f";
+  ctx.beginPath();
+  ctx.arc(tree.x + tree.size * 0.35, tree.y + tree.size * 0.44, tree.size * 0.32, 0, Math.PI * 2);
+  ctx.arc(tree.x + tree.size * 0.62, tree.y + tree.size * 0.42, tree.size * 0.34, 0, Math.PI * 2);
+  ctx.arc(tree.x + tree.size * 0.5, tree.y + tree.size * 0.2, tree.size * 0.31, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#2fa66f";
+  ctx.beginPath();
+  ctx.arc(tree.x + tree.size * 0.25, tree.y + tree.size * 0.4, tree.size * 0.13, 0, Math.PI * 2);
+  ctx.arc(tree.x + tree.size * 0.67, tree.y + tree.size * 0.28, tree.size * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.beginPath();
+  ctx.arc(tree.x + tree.size * 0.42, tree.y + tree.size * 0.28, tree.size * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFlower(flower) {
+  if (flower.y < 126 || (flower.x > 730 && flower.x < 920 && flower.y > 175 && flower.y < 330)) return;
+  ctx.fillStyle = flower.color;
+  ctx.beginPath();
+  ctx.arc(flower.x, flower.y, 2.5, 0, Math.PI * 2);
+  ctx.arc(flower.x + 4, flower.y + 1, 2, 0, Math.PI * 2);
+  ctx.arc(flower.x - 3, flower.y + 2, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBins() {
+  bins.forEach((bin) => {
+    const zone = getBinDropZone(bin);
+    const isCorrectTarget = carried && carried.type === bin.type;
+    const isWrongTarget = carried && carried.type !== bin.type;
+    const pulse = 1 + Math.sin(performance.now() / 340 + bin.x) * 0.035;
+    const lidLift = isCorrectTarget ? 6 + Math.sin(ambientTime * 8 + bin.x) * 2 : 0;
+    const signal = isCorrectTarget ? 1 : 0;
+    const bodyTop = bin.y + 24;
+    const bodyBottom = bin.y + 101;
+    const bodyLeft = bin.x + 5;
+    const bodyRight = bin.x + BIN_W - 5;
+
+    ctx.save();
+    ctx.shadowColor = "rgba(16,32,51,0.22)";
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 8;
+    fillGradientRoundedRect(bin.x - 15, bin.y + 92, BIN_W + 30, 25, 8, "rgba(222,208,164,0.94)", "rgba(145,112,67,0.9)");
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = isCorrectTarget ? 0.65 : carried ? 0.18 : 0.2;
+    ctx.strokeStyle = bin.color;
+    ctx.lineWidth = isCorrectTarget ? 7 : 5;
+    ctx.beginPath();
+    ctx.ellipse(zone.x + zone.w / 2, zone.y + zone.h / 2, (zone.w / 2) * pulse, (zone.h / 2) * pulse, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = isCorrectTarget ? 0.24 : carried ? 0.08 : 0.08;
+    ctx.fillStyle = bin.color;
+    ctx.beginPath();
+    ctx.ellipse(zone.x + zone.w / 2, zone.y + zone.h / 2, zone.w / 2, zone.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    if (isCorrectTarget) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.22 + Math.sin(ambientTime * 6 + bin.x) * 0.08;
+      const aura = ctx.createRadialGradient(zone.x + zone.w / 2, zone.y + zone.h / 2, 4, zone.x + zone.w / 2, zone.y + zone.h / 2, 92);
+      aura.addColorStop(0, bin.color);
+      aura.addColorStop(0.48, "rgba(255,247,168,0.32)");
+      aura.addColorStop(1, "rgba(255,247,168,0)");
+      ctx.fillStyle = aura;
+      ctx.fillRect(zone.x - 42, zone.y - 42, zone.w + 84, zone.h + 84);
+      ctx.restore();
+    }
+
+    ctx.save();
+    if (isWrongTarget) ctx.globalAlpha = 0.72;
+    ctx.shadowColor = isCorrectTarget ? bin.color : "rgba(24,32,42,0.28)";
+    ctx.shadowBlur = isCorrectTarget ? 28 : 18;
+    ctx.shadowOffsetY = 10;
+    const bodyGradient = ctx.createLinearGradient(bin.x, bodyTop, bin.x + BIN_W, bodyBottom);
+    bodyGradient.addColorStop(0, shade(bin.color, 30));
+    bodyGradient.addColorStop(0.48, bin.color);
+    bodyGradient.addColorStop(1, shade(bin.color, -34));
+    ctx.fillStyle = bodyGradient;
+    ctx.beginPath();
+    ctx.moveTo(bodyLeft + 9, bodyTop);
+    ctx.lineTo(bodyRight - 9, bodyTop);
+    ctx.quadraticCurveTo(bodyRight + 8, bodyTop + 24, bodyRight - 3, bodyBottom);
+    ctx.quadraticCurveTo(bin.x + BIN_W / 2, bodyBottom + 8, bodyLeft + 3, bodyBottom);
+    ctx.quadraticCurveTo(bodyLeft - 8, bodyTop + 24, bodyLeft + 9, bodyTop);
+    ctx.closePath();
+    ctx.fill();
+    if (isCorrectTarget) {
+      ctx.globalAlpha = 0.24;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i += 1) {
+        const ring = 1 + ((ambientTime * 1.8 + i / 3) % 1) * 0.55;
+        ctx.beginPath();
+        ctx.ellipse(zone.x + zone.w / 2, zone.y + zone.h / 2, (zone.w / 2) * ring, (zone.h / 2) * ring, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    ctx.save();
+    if (isWrongTarget) ctx.globalAlpha = 0.72;
+    ctx.strokeStyle = "rgba(17,45,38,0.34)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(bodyLeft + 9, bodyTop);
+    ctx.lineTo(bodyRight - 9, bodyTop);
+    ctx.quadraticCurveTo(bodyRight + 8, bodyTop + 24, bodyRight - 3, bodyBottom);
+    ctx.quadraticCurveTo(bin.x + BIN_W / 2, bodyBottom + 8, bodyLeft + 3, bodyBottom);
+    ctx.quadraticCurveTo(bodyLeft - 8, bodyTop + 24, bodyLeft + 9, bodyTop);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(bin.x + BIN_W / 2, bin.y + 20);
+    ctx.rotate(signal * Math.sin(ambientTime * 6 + bin.x) * 0.025);
+    fillGradientRoundedRect(-BIN_W / 2 + 7, -12 - lidLift, BIN_W - 14, 22, 7, shade(bin.color, 24 + signal * 10), shade(bin.color, -30));
+    fillGradientRoundedRect(-BIN_W / 2 + 29, -23 - lidLift, BIN_W - 58, 12, 5, shade(bin.color, 12 + signal * 12), shade(bin.color, -42));
+    ctx.restore();
+
+    if (isCorrectTarget) {
+      ctx.save();
+      ctx.globalAlpha = 0.34 + Math.sin(ambientTime * 8) * 0.12;
+      ctx.strokeStyle = "#fff7a8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(bin.x + 48, bin.y - 15);
+      ctx.lineTo(bin.x + 43, bin.y - 26);
+      ctx.moveTo(bin.x + 75, bin.y - 18);
+      ctx.lineTo(bin.x + 75, bin.y - 32);
+      ctx.moveTo(bin.x + 102, bin.y - 15);
+      ctx.lineTo(bin.x + 107, bin.y - 26);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.beginPath();
+    ctx.moveTo(bin.x + 20, bodyTop + 9);
+    ctx.quadraticCurveTo(bin.x + 14, bodyTop + 37, bin.x + 25, bodyBottom - 13);
+    ctx.lineTo(bin.x + 42, bodyBottom - 16);
+    ctx.quadraticCurveTo(bin.x + 33, bodyTop + 45, bin.x + 39, bodyTop + 12);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    fillRoundedRect(bin.x + 42, bin.y + 32, 66, 9, 5, "rgba(0,0,0,0.18)");
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.beginPath();
+    ctx.arc(bin.x + BIN_W - 33, bin.y + 52, 8, 0, Math.PI * 2);
+    ctx.fill();
+    fillGradientRoundedRect(bin.x + 27, bin.y + 52, BIN_W - 54, 27, 7, "rgba(16,32,51,0.28)", "rgba(16,32,51,0.16)");
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.strokeStyle = "rgba(16,32,51,0.38)";
+    ctx.lineWidth = 3;
+    ctx.strokeText(bin.label, bin.x + BIN_W / 2, bin.y + 65);
+    ctx.fillText(bin.label, bin.x + BIN_W / 2, bin.y + 65);
+    ctx.textBaseline = "alphabetic";
+    drawIconBadge(bin.x + BIN_W / 2, bin.y + 40, 32, bin.color);
+    ctx.restore();
+
+    if (isCorrectTarget) {
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "#fff7a8";
+      ctx.font = "bold 17px Arial";
+      ctx.textAlign = "center";
+      ctx.strokeStyle = "rgba(16,32,51,0.55)";
+      ctx.lineWidth = 4;
+      ctx.strokeText("AQUI", zone.x + zone.w / 2, zone.y + zone.h + 18);
+      ctx.fillText("AQUI", zone.x + zone.w / 2, zone.y + zone.h + 18);
+      ctx.restore();
+    }
+  });
+}
+
+function drawIconBadge(cx, cy, size, baseColor) {
+  ctx.save();
+  ctx.shadowColor = "rgba(16,32,51,0.22)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = "rgba(16,32,51,0.18)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.stroke();
+  drawSvgIcon(recycleIcon, cx - size * 0.31, cy - size * 0.31, size * 0.62, shade(baseColor, -34), 0.92);
+}
+
+function shade(hex, amount) {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, (value >> 16) + amount));
+  const g = Math.max(0, Math.min(255, ((value >> 8) & 255) + amount));
+  const b = Math.max(0, Math.min(255, (value & 255) + amount));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function drawItems() {
+  items.forEach((item) => {
+    const bob = Math.sin(ambientTime * 3.2 + item.phase) * 5;
+    const spin = Math.sin(ambientTime * 2.1 + item.phase) * 0.1 + item.spin;
+    ctx.save();
+    ctx.shadowColor = "rgba(24,32,42,0.2)";
+    ctx.shadowBlur = 8 + Math.max(0, bob);
+    ctx.shadowOffsetY = 6;
+    ctx.translate(item.x + item.w / 2, item.y + item.h / 2 + bob);
+    ctx.rotate(spin);
+    drawItemIcon(-item.w / 2, -item.h / 2, item.w, item.h, item);
+    ctx.globalAlpha = 0.22 + Math.sin(ambientTime * 5 + item.phase) * 0.1;
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, item.w * 0.68, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function currentPhase() {
+  return phaseConfigs[Math.min(level - 1, phaseConfigs.length - 1)];
+}
+
+function loadSave() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
+    return {
+      unlockedLevel: Math.max(1, Math.min(phaseConfigs.length, parsed.unlockedLevel || 1)),
+      bestScores: Array.isArray(parsed.bestScores) ? parsed.bestScores : [],
+      audioMuted: Boolean(parsed.audioMuted)
+    };
+  } catch {
+    return { unlockedLevel: 1, bestScores: [], audioMuted: false };
+  }
+}
+
+function saveProgress() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+  } catch {
+    // Progress save is optional; the game should keep working if storage is blocked.
+  }
+}
+
+function completeLevelSave(levelNumber, points) {
+  const index = levelNumber - 1;
+  saveData.bestScores[index] = Math.max(saveData.bestScores[index] || 0, points);
+  saveData.unlockedLevel = Math.max(saveData.unlockedLevel, Math.min(phaseConfigs.length, levelNumber + 1));
+  saveProgress();
+  renderPhaseCards();
+}
+
+function renderPhaseCards() {
+  if (!phaseCardsEl) return;
+  phaseCardsEl.innerHTML = phaseConfigs.map((phase, index) => {
+    const levelNumber = index + 1;
+    const locked = levelNumber > saveData.unlockedLevel;
+    const active = levelNumber === selectedLevel;
+    const best = saveData.bestScores[index] || 0;
+    return `
+      <button class="phase-card ${active ? "active" : ""} ${locked ? "locked" : ""}" data-phase="${levelNumber}" type="button" ${locked ? "disabled" : ""}>
+        <span>Fase ${levelNumber}</span>
+        <strong>${phase.name}</strong>
+        <small>${locked ? "Bloqueada" : `Recorde ${best}`}</small>
+      </button>
+    `;
+  }).join("");
+}
+
+function setLesson(text) {
+  if (lessonTextEl) lessonTextEl.textContent = text;
+}
+
+function ensureAudio() {
+  if (audioCtx || audioMuted) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  audioCtx = new AudioContext();
+}
+
+function playTone(frequency, duration = 0.08, type = "sine", volume = 0.06) {
+  if (audioMuted) return;
+  ensureAudio();
+  if (!audioCtx) return;
+  const oscillator = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(volume, audioCtx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+  oscillator.connect(gain);
+  gain.connect(audioCtx.destination);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + duration + 0.02);
+}
+
+function playSound(kind) {
+  if (kind === "pickup") {
+    playTone(660, 0.07, "triangle", 0.045);
+    window.setTimeout(() => playTone(880, 0.06, "triangle", 0.035), 45);
+  } else if (kind === "success") {
+    playTone(523, 0.08, "sine", 0.05);
+    window.setTimeout(() => playTone(784, 0.09, "sine", 0.055), 70);
+    window.setTimeout(() => playTone(1046, 0.12, "sine", 0.045), 140);
+  } else if (kind === "error") {
+    playTone(170, 0.16, "sawtooth", 0.045);
+  } else if (kind === "boom") {
+    playTone(72, 0.22, "sawtooth", 0.08);
+    window.setTimeout(() => playTone(44, 0.18, "square", 0.045), 40);
+  } else if (kind === "level") {
+    playTone(392, 0.08, "triangle", 0.045);
+    window.setTimeout(() => playTone(587, 0.08, "triangle", 0.05), 75);
+    window.setTimeout(() => playTone(784, 0.12, "triangle", 0.045), 150);
+  }
+}
+
+function drawItemIcon(x, y, w, h, item) {
+  drawSoftEllipse(x + w / 2, y + h - 2, w * 0.42, 5, "rgba(16,32,51,0.2)");
+  ctx.fillStyle = item.color;
+  const topColor = shade(item.color, 20);
+  const bottomColor = shade(item.color, -18);
+  if (item.icon === "bottle") {
+    fillGradientRoundedRect(x + w * 0.3, y + h * 0.12, w * 0.4, h * 0.76, 12, topColor, bottomColor);
+    fillRoundedRect(x + w * 0.4, y + h * 0.01, w * 0.2, h * 0.2, 3, shade(item.color, -18));
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillRect(x + w * 0.42, y + h * 0.24, w * 0.08, h * 0.42);
+  } else if (item.icon === "can") {
+    fillGradientRoundedRect(x + w * 0.2, y + h * 0.12, w * 0.6, h * 0.74, 10, topColor, bottomColor);
+    ctx.strokeStyle = shade(item.color, -35);
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + h * 0.18, w * 0.29, h * 0.1, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (item.icon === "bag") {
+    fillGradientRoundedRect(x + w * 0.12, y + h * 0.27, w * 0.76, h * 0.58, 8, topColor, bottomColor);
+    ctx.strokeStyle = shade(item.color, -45);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h * 0.3, w * 0.2, Math.PI, Math.PI * 2);
+    ctx.stroke();
+  } else if (item.icon === "jar" || item.icon === "glass") {
+    fillGradientRoundedRect(x + w * 0.26, y + h * 0.12, w * 0.48, h * 0.76, 7, topColor, bottomColor);
+    fillRoundedRect(x + w * 0.33, y + h * 0.02, w * 0.34, h * 0.14, 4, shade(item.color, -22));
+    ctx.fillStyle = "rgba(255,255,255,0.42)";
+    ctx.fillRect(x + w * 0.38, y + h * 0.22, w * 0.12, h * 0.45);
+  } else if (item.icon === "box") {
+    fillGradientRoundedRect(x + w * 0.1, y + h * 0.22, w * 0.8, h * 0.64, 8, topColor, bottomColor);
+    ctx.strokeStyle = shade(item.color, -35);
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.08, y + h * 0.42);
+    ctx.lineTo(x + w * 0.92, y + h * 0.42);
+    ctx.moveTo(x + w * 0.5, y + h * 0.22);
+    ctx.lineTo(x + w * 0.5, y + h * 0.86);
+    ctx.stroke();
+  } else {
+    fillGradientRoundedRect(x + w * 0.14, y + h * 0.14, w * 0.72, h * 0.68, 5, topColor, bottomColor);
+    ctx.strokeStyle = shade(item.color, -35);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.28, y + h * 0.35);
+    ctx.lineTo(x + w * 0.72, y + h * 0.35);
+    ctx.moveTo(x + w * 0.28, y + h * 0.55);
+    ctx.lineTo(x + w * 0.67, y + h * 0.55);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.24)";
+  ctx.beginPath();
+  ctx.arc(x + w * 0.72, y + h * 0.25, w * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawHazards() {
+  hazards.forEach((hazard) => {
+    const pulse = 1 + Math.sin(performance.now() / 160 + hazard.x) * 0.045;
+    const cx = hazard.x + hazard.w / 2;
+    const cy = hazard.y + hazard.h / 2;
+    const wobble = Math.sin(ambientTime * 9 + hazard.phase) * 0.07;
+    const alarm = 0.5 + Math.sin(ambientTime * 7 + hazard.phase) * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "#111827";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 20, 41 * pulse, 13 * pulse, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = "#ef4444";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 42 * pulse, 32 * pulse, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.12 + alarm * 0.08;
+    const dangerGlow = ctx.createRadialGradient(cx, cy, 8, cx, cy, 70);
+    dangerGlow.addColorStop(0, "rgba(239,68,68,0.52)");
+    dangerGlow.addColorStop(0.42, "rgba(249,115,22,0.18)");
+    dangerGlow.addColorStop(1, "rgba(249,115,22,0)");
+    ctx.fillStyle = dangerGlow;
+    ctx.fillRect(cx - 78, cy - 78, 156, 156);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(ambientTime * 1.7 + hazard.phase);
+    ctx.globalAlpha = 0.16 + alarm * 0.14;
+    ctx.strokeStyle = "#ef4444";
+    ctx.lineWidth = 3;
+  for (let i = 0; i < 3; i += 1) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.moveTo(42, 0);
+      ctx.lineTo(54, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(wobble);
+    ctx.translate(-cx, -cy);
+
+    const metal = ctx.createRadialGradient(cx - 12, cy - 14, 4, cx, cy, 44);
+    metal.addColorStop(0, "#cbd5e1");
+    metal.addColorStop(0.22, "#64748b");
+    metal.addColorStop(0.58, "#243044");
+    metal.addColorStop(1, "#070b13");
+    ctx.fillStyle = metal;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 34 * pulse, 31 * pulse, 0.03, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.16)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx - 2, cy - 2, 24, -2.55, -0.45);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(0,0,0,0.42)";
+    ctx.beginPath();
+    ctx.arc(cx + 2, cy + 3, 27, 0.25, 2.4);
+    ctx.stroke();
+    ctx.restore();
+
+    fillGradientRoundedRect(cx - 14, cy - 38, 28, 15, 5, "#94a3b8", "#0f172a");
+    ctx.strokeStyle = "#020617";
+    ctx.lineWidth = 2;
+    strokeRoundedRect(cx - 14, cy - 38, 28, 15, 5, "#020617", 2);
+
+    ctx.save();
+    ctx.strokeStyle = "#78350f";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx + 10, cy - 38);
+    ctx.bezierCurveTo(cx + 26, cy - 55, cx + 44, cy - 35, cx + 31, cy - 22);
+    ctx.stroke();
+    const sparkX = cx + 31 + Math.sin(ambientTime * 11) * 2.4;
+    const sparkY = cy - 22 + Math.cos(ambientTime * 9) * 2;
+    ctx.shadowColor = "#ef4444";
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const radius = i % 2 === 0 ? 8 : 3;
+      const x = sparkX + Math.cos(angle + ambientTime * 7) * radius;
+      const y = sparkY + Math.sin(angle + ambientTime * 7) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(sparkX, sparkY, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(cx - 12, cy - 17, 11, 5, -0.58, 0, Math.PI * 2);
+    ctx.arc(cx + 13, cy + 18, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ef4444";
+    ctx.shadowColor = "#dc2626";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy - 7);
+    ctx.lineTo(cx - 4, cy - 3);
+    ctx.lineTo(cx - 15, cy + 5);
+    ctx.closePath();
+    ctx.moveTo(cx + 18, cy - 7);
+    ctx.lineTo(cx + 4, cy - 3);
+    ctx.lineTo(cx + 15, cy + 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.strokeStyle = "rgba(255,255,255,0.76)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy + 12, 10, 0.18, Math.PI - 0.18);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function drawPlayer() {
+  const walkAmount = player.walking ? 1 : 0;
+  const phase = player.walkCycle;
+  const stride = Math.sin(phase) * walkAmount;
+  const oppositeStride = Math.sin(phase + Math.PI) * walkAmount;
+  const bob = player.walking ? Math.abs(Math.sin(phase)) * -2.4 : Math.sin(performance.now() / 520) * 0.7;
+  const px = player.x;
+  const py = player.y + bob;
+  const centerX = px + player.w / 2;
+  const shoulderY = py + 22;
+  const hipY = py + 42;
+  const viewAngle = player.facingAngle || 0;
+  const viewSide = Math.sin(viewAngle);
+  const viewFront = Math.cos(viewAngle);
+  const viewBack = -viewFront;
+  const sideAmount = Math.abs(viewSide);
+  const backAlpha = clamp((viewBack - 0.08) / 0.82, 0, 1);
+  const faceAlpha = clamp((viewFront + 0.24) / 0.78 + sideAmount * 0.35, 0, 1);
+  const headX = centerX + viewSide * 2.6;
+  const sideFacing = sideAmount > 0.42;
+  const faceOffset = viewSide * 4.2;
+  const speed = Math.hypot(player.vx, player.vy);
+  const lean = player.visualLean || 0;
+  const squash = player.walking ? Math.sin(phase * 2) * 0.025 : Math.sin(ambientTime * 2.1) * 0.008;
+
+  ctx.save();
+  ctx.translate(centerX, player.y + player.h + 1);
+  ctx.rotate(lean);
+  ctx.scale(1 + squash, 1 - squash * 0.7);
+  ctx.translate(-centerX, -(player.y + player.h + 1));
+  ctx.shadowColor = "rgba(24,32,42,0.25)";
+  ctx.shadowBlur = 10 + Math.min(7, speed / 55);
+  ctx.shadowOffsetY = 7;
+  ctx.globalAlpha = player.invincible > 0 ? 0.55 : 1;
+
+  drawSoftEllipse(centerX, player.y + player.h + 1, 28, 8, "rgba(16,32,51,0.24)");
+  if (player.turnEnergy > 0.04) {
+    ctx.save();
+    ctx.globalAlpha = player.turnEnergy * 0.42;
+    ctx.strokeStyle = "#fff7a8";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 8]);
+    ctx.beginPath();
+    ctx.ellipse(centerX, player.y + player.h - 1, 32, 10, 0, ambientTime * 4, ambientTime * 4 + Math.PI * 1.35);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  const leftHipX = centerX - 7;
+  const rightHipX = centerX + 7;
+  const leftKneeX = leftHipX + (sideFacing ? stride * 4.2 : -2 + stride * 1.5);
+  const rightKneeX = rightHipX + (sideFacing ? oppositeStride * 4.2 : 2 + oppositeStride * 1.5);
+  const leftKneeY = hipY + 9 + Math.max(0, oppositeStride) * 1.8;
+  const rightKneeY = hipY + 9 + Math.max(0, stride) * 1.8;
+  const leftFootX = leftKneeX - 2 + stride * 4.5;
+  const rightFootX = rightKneeX + 2 + oppositeStride * 4.5;
+  const footY = py + 58;
+
+  drawLimb(leftHipX, hipY, leftKneeX, leftKneeY, "rgba(16,32,51,0.3)", 10);
+  drawLimb(rightHipX, hipY, rightKneeX, rightKneeY, "rgba(16,32,51,0.3)", 10);
+  drawLimb(leftKneeX, leftKneeY, leftFootX, footY - 3, "rgba(16,32,51,0.32)", 9);
+  drawLimb(rightKneeX, rightKneeY, rightFootX, footY - 3, "rgba(16,32,51,0.32)", 9);
+  drawLimb(leftHipX, hipY, leftKneeX, leftKneeY, "#2a526f", 6.5);
+  drawLimb(rightHipX, hipY, rightKneeX, rightKneeY, "#244a66", 6.5);
+  drawLimb(leftKneeX, leftKneeY, leftFootX, footY - 3, "#1d3b55", 5.5);
+  drawLimb(rightKneeX, rightKneeY, rightFootX, footY - 3, "#17344e", 5.5);
+
+  const carryPose = carried ? 1 : 0;
+  const leftArmSwing = sideFacing ? oppositeStride : stride;
+  const rightArmSwing = sideFacing ? stride : oppositeStride;
+  const leftHandX = centerX - 17 + leftArmSwing * 7 + carryPose * 9;
+  const rightHandX = centerX + 17 + rightArmSwing * 7 - carryPose * 9;
+  const handY = shoulderY + 21 - carryPose * 21;
+  drawLimb(centerX - 13, shoulderY + 4, leftHandX, handY, "rgba(16,32,51,0.24)", 9);
+  drawLimb(centerX + 13, shoulderY + 4, rightHandX, handY, "rgba(16,32,51,0.24)", 9);
+  drawLimb(centerX - 13, shoulderY + 4, leftHandX, handY, "#f0b98f", 5.8);
+  drawLimb(centerX + 13, shoulderY + 4, rightHandX, handY, "#e8ad86", 5.8);
+  drawSoftEllipse(leftHandX, handY + 2, 4.6, 4, "#f2c29b");
+  drawSoftEllipse(rightHandX, handY + 2, 4.6, 4, "#f2c29b");
+
+  ctx.fillStyle = "#e7b28c";
+  fillRoundedRect(centerX - 4, py + 18, 8, 8, 3, "#e7b28c");
+
+  const shirt = ctx.createLinearGradient(centerX - 18, shoulderY, centerX + 18, hipY + 3);
+  shirt.addColorStop(0, "#36d082");
+  shirt.addColorStop(0.55, "#18955f");
+  shirt.addColorStop(1, "#0f5b43");
+  ctx.fillStyle = shirt;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 16, shoulderY + 1);
+  ctx.quadraticCurveTo(centerX - 9, shoulderY - 3, centerX, shoulderY - 1);
+  ctx.quadraticCurveTo(centerX + 9, shoulderY - 3, centerX + 16, shoulderY + 1);
+  ctx.quadraticCurveTo(centerX + 14, shoulderY + 17, centerX + 10, hipY + 3);
+  ctx.quadraticCurveTo(centerX, hipY + 7, centerX - 10, hipY + 3);
+  ctx.quadraticCurveTo(centerX - 14, shoulderY + 17, centerX - 16, shoulderY + 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(16,32,51,0.3)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.beginPath();
+  ctx.moveTo(centerX - 9, shoulderY + 6);
+  ctx.quadraticCurveTo(centerX - 5, shoulderY + 20, centerX - 8, hipY);
+  ctx.lineTo(centerX - 2, hipY + 2);
+  ctx.quadraticCurveTo(centerX + 1, shoulderY + 19, centerX - 1, shoulderY + 5);
+  ctx.closePath();
+  ctx.fill();
+  if (backAlpha > 0.02) {
+    ctx.save();
+    ctx.globalAlpha *= backAlpha;
+    ctx.strokeStyle = "rgba(6,43,31,0.34)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX, shoulderY + 5);
+    ctx.quadraticCurveTo(centerX - 2, shoulderY + 22, centerX, hipY + 2);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(234,255,239,0.28)";
+    ctx.beginPath();
+    ctx.arc(centerX, shoulderY + 18, 7, 0, Math.PI * 2);
+    ctx.fill();
+    drawSvgIcon(recycleIcon, centerX - 6, shoulderY + 12, 12, "rgba(234,255,239,0.86)", 0.8);
+    ctx.restore();
+  }
+  if (faceAlpha > 0.02) {
+    ctx.save();
+    ctx.globalAlpha *= faceAlpha;
+    drawShirtDetail(centerX, shoulderY + 18);
+    ctx.restore();
+  }
+
+  ctx.fillStyle = "#e8ad86";
+  ctx.beginPath();
+  ctx.arc(headX - 11.2, py + 13.8, 3.1, 0, Math.PI * 2);
+  ctx.arc(headX + 11.2, py + 13.8, 3.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#f3c49f";
+  ctx.beginPath();
+  ctx.ellipse(headX, py + 13.5, 12.2, 13.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(16,32,51,0.28)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  if (backAlpha > 0.02) {
+    ctx.save();
+    ctx.globalAlpha *= backAlpha;
+    drawBackHair(headX, py + 5);
+    ctx.fillStyle = "rgba(66,44,34,0.2)";
+    ctx.beginPath();
+    ctx.ellipse(headX, py + 18.5, 5.5, 2.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  if (faceAlpha > 0.02) {
+    ctx.save();
+    ctx.globalAlpha *= faceAlpha;
+    drawHair(headX, py + 5);
+    ctx.fillStyle = "#243042";
+    ctx.beginPath();
+    ctx.arc(headX - 4.7 + faceOffset, py + 13, 1.75, 0, Math.PI * 2);
+    ctx.arc(headX + 4.7 + faceOffset, py + 13, 1.75, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(229,105,105,0.18)";
+    ctx.beginPath();
+    ctx.arc(headX - 7 + faceOffset * 0.4, py + 18, 2.5, 0, Math.PI * 2);
+    ctx.arc(headX + 7 + faceOffset * 0.4, py + 18, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#b87f63";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(headX + faceOffset * 0.35, py + 13);
+    ctx.lineTo(headX + 1 + faceOffset * 0.35, py + 16);
+    ctx.stroke();
+    ctx.strokeStyle = "#243042";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(headX + faceOffset * 0.65, py + 18, 4.5, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  drawShoe(leftFootX, footY - 3, stride);
+  drawShoe(rightFootX, footY - 3, oppositeStride);
+
+  if (carried) {
+    ctx.save();
+    ctx.shadowColor = "rgba(16,32,51,0.3)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 6;
+    ctx.translate(centerX, py - 40 + Math.sin(phase * 1.6) * 2);
+    ctx.rotate(Math.sin(ambientTime * 5) * 0.08);
+    drawItemIcon(-25, 0, 50, 36, { ...carried, w: 50, h: 36 });
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = carried.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 18, 30, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawShoe(x, y, phase) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(phase * 0.12);
+  fillGradientRoundedRect(-8, -2, 17, 7, 4, "#1f2937", "#050914");
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.fillRect(-4, -1, 7, 2);
+  ctx.restore();
+}
+
+function drawLimb(x1, y1, x2, y2, color, width) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+function drawHair(x, y) {
+  ctx.save();
+  ctx.fillStyle = "#18231e";
+  ctx.beginPath();
+  ctx.ellipse(x, y - 2, 14, 8.6, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#20362d";
+  ctx.beginPath();
+  ctx.arc(x - 10, y + 1, 4.6, Math.PI, Math.PI * 2);
+  ctx.arc(x - 4, y - 4, 6.6, Math.PI, Math.PI * 2);
+  ctx.arc(x + 4, y - 3, 7.6, Math.PI, Math.PI * 2);
+  ctx.arc(x + 11, y + 1, 4.7, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#111b18";
+  ctx.beginPath();
+  ctx.ellipse(x, y + 2, 13.8, 5.5, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255,255,255,0.1)";
+  ctx.beginPath();
+  ctx.ellipse(x - 5, y - 5, 5, 2.2, -0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBackHair(x, y) {
+  ctx.save();
+  const sway = Math.sin(ambientTime * 4.2 + player.walkCycle) * (player.walking ? 1.4 : 0.4);
+  const hairGradient = ctx.createLinearGradient(x, y - 12, x, y + 11);
+  hairGradient.addColorStop(0, "#24362e");
+  hairGradient.addColorStop(0.55, "#17231f");
+  hairGradient.addColorStop(1, "#0d1714");
+  ctx.fillStyle = hairGradient;
+  ctx.beginPath();
+  ctx.moveTo(x - 13, y + 5);
+  ctx.quadraticCurveTo(x - 15 + sway, y - 7, x - 7, y - 13);
+  ctx.quadraticCurveTo(x, y - 18, x + 8, y - 13);
+  ctx.quadraticCurveTo(x + 16 + sway, y - 6, x + 13, y + 6);
+  ctx.quadraticCurveTo(x + 7, y + 11, x, y + 9);
+  ctx.quadraticCurveTo(x - 8, y + 11, x - 13, y + 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.beginPath();
+  ctx.ellipse(x - 5 + sway * 0.3, y - 5, 5.5, 2.2, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(5,12,10,0.28)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y - 12);
+  ctx.quadraticCurveTo(x - 5 + sway, y - 1, x - 3, y + 8);
+  ctx.moveTo(x + 5, y - 10);
+  ctx.quadraticCurveTo(x + 7 + sway, y, x + 5, y + 7);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawShirtDetail(x, y) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(234,255,239,0.86)";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(x, y - 2, 7, -0.2, Math.PI * 1.15);
+  ctx.moveTo(x + 4, y - 9);
+  ctx.lineTo(x + 8, y - 3);
+  ctx.lineTo(x + 2, y - 2);
+  ctx.moveTo(x - 4, y + 6);
+  ctx.lineTo(x - 8, y);
+  ctx.lineTo(x - 2, y - 1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawParticles() {
+  particles.forEach((particle) => {
+    ctx.save();
+    const progress = Math.max(0, particle.life / particle.maxLife);
+    ctx.globalAlpha = progress;
+    const size = (particle.size || 4) * (0.55 + (1 - progress) * 0.9);
+    ctx.translate(particle.x, particle.y);
+    ctx.rotate(particle.rotation || 0);
+    if (particle.shape === "smoke") {
+      ctx.globalAlpha = progress * 0.42;
+      const smoke = ctx.createRadialGradient(0, 0, 1, 0, 0, size * 2.8);
+      smoke.addColorStop(0, "rgba(31,41,55,0.72)");
+      smoke.addColorStop(0.65, "rgba(75,85,99,0.28)");
+      smoke.addColorStop(1, "rgba(75,85,99,0)");
+      ctx.fillStyle = smoke;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 2.4, size * 1.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (particle.shape === "spark") {
+      ctx.shadowColor = particle.color;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.moveTo(0, -size * 1.6);
+      ctx.lineTo(size * 0.45, 0);
+      ctx.lineTo(0, size * 1.6);
+      ctx.lineTo(-size * 0.45, 0);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      drawSoftEllipse(0, 0, size, size * 0.75, particle.color);
+    }
+    ctx.restore();
+  });
+}
+
+function drawExplosions() {
+  explosions.forEach((explosion) => {
+    const progress = 1 - explosion.life / explosion.maxLife;
+    const alpha = Math.max(0, 1 - progress);
+    const radius = 18 + progress * 92;
+
+    ctx.save();
+    ctx.translate(explosion.x, explosion.y);
+
+    ctx.globalAlpha = alpha * 0.86;
+    const flash = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.85);
+    flash.addColorStop(0, "rgba(255,255,255,0.96)");
+    flash.addColorStop(0.22, "rgba(255,247,168,0.88)");
+    flash.addColorStop(0.55, "rgba(249,115,22,0.42)");
+    flash.addColorStop(1, "rgba(239,68,68,0)");
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.78, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.rotate(explosion.phase + progress * 3.5);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = "#fff7a8";
+    ctx.lineWidth = Math.max(1, 7 * alpha);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#f97316";
+    ctx.lineWidth = Math.max(1, 4 * alpha);
+    ctx.beginPath();
+    for (let i = 0; i < 14; i += 1) {
+      const angle = (Math.PI * 2 * i) / 14;
+      const inner = radius * 0.28;
+      const outer = radius * (0.72 + (i % 2) * 0.18);
+      ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+    }
+    ctx.stroke();
+
+    ctx.globalAlpha = alpha * 0.28;
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 9 * alpha;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.15, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function drawDeliveryBursts() {
+  deliveryBursts.forEach((burst) => {
+    const progress = 1 - burst.life / burst.maxLife;
+    const alpha = Math.max(0, 1 - progress);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(burst.x, burst.y);
+    ctx.rotate(burst.phase + progress * Math.PI);
+    ctx.strokeStyle = burst.color;
+    ctx.lineWidth = 4 * alpha;
+    ctx.beginPath();
+    ctx.arc(0, 0, 18 + progress * 58, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = alpha * 0.42;
+    ctx.fillStyle = burst.color;
+    for (let i = 0; i < 10; i += 1) {
+      const angle = (Math.PI * 2 * i) / 10;
+      const radius = 18 + progress * 72;
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.75, 5, 2, angle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+function drawMotionTrails() {
+  motionTrails.forEach((trail) => {
+    const progress = Math.max(0, trail.life / trail.maxLife);
+    const cx = trail.x + PLAYER_W / 2;
+    const cy = trail.y + PLAYER_H / 2 + 6;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = progress * 0.14;
+    ctx.translate(cx, cy);
+    ctx.rotate((trail.facingAngle || 0) * 0.18);
+    const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 32);
+    glow.addColorStop(0, trail.color);
+    glow.addColorStop(0.45, "rgba(183,247,208,0.34)");
+    glow.addColorStop(1, "rgba(183,247,208,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 17 * progress, 31 * progress, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawScreenEffects() {
+  if (screenFlash <= 0 && slowMoTime <= 0) return;
+  ctx.save();
+  if (screenFlash > 0) {
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = Math.min(0.42, screenFlash * 0.36);
+    ctx.fillStyle = "#fff7a8";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  if (slowMoTime > 0) {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = Math.min(0.18, slowMoTime * 0.9);
+    const shock = ctx.createRadialGradient(player.x + player.w / 2, player.y + player.h / 2, 30, player.x + player.w / 2, player.y + player.h / 2, 360);
+    shock.addColorStop(0, "rgba(255,255,255,0)");
+    shock.addColorStop(0.55, "rgba(239,68,68,0.18)");
+    shock.addColorStop(1, "rgba(15,23,42,0.28)");
+    ctx.fillStyle = shock;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  ctx.restore();
+}
+
+function drawTip() {
+  ctx.save();
+  ctx.shadowColor = "rgba(24,32,42,0.18)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  fillGradientRoundedRect(TIP_BOX.x, TIP_BOX.y, TIP_BOX.w, TIP_BOX.h, 8, "rgba(255,253,238,0.96)", "rgba(235,252,230,0.95)");
+  strokeRoundedRect(TIP_BOX.x, TIP_BOX.y, TIP_BOX.w, TIP_BOX.h, 8, "rgba(36,113,80,0.28)", 2);
+  ctx.restore();
+  ctx.fillStyle = "#14523e";
+  ctx.font = "bold 15px Arial";
+  ctx.textAlign = "left";
+  const text = carried
+    ? `Levando ${carried.name}: entre no circulo da lixeira de ${carried.type}.`
+    : "Pegue um residuo e leve para a lixeira correta.";
+  ctx.fillText(text, TIP_BOX.x + 16, TIP_BOX.y + 36);
+}
+
+function draw() {
+  if (!player || !items || !hazards) return;
+  ctx.save();
+  if (shakeTime > 0) {
+    const shakeEase = shakeTime * shakeTime;
+    ctx.translate(
+      Math.sin(ambientTime * 92) * shakeStrength * shakeEase + Math.sin(ambientTime * 43) * shakeStrength * 0.35 * shakeEase,
+      Math.cos(ambientTime * 88) * shakeStrength * shakeEase + Math.sin(ambientTime * 57) * shakeStrength * 0.25 * shakeEase
+    );
+  }
+  drawBackground();
+  drawBins();
+  drawItems();
+  drawMotionTrails();
+  drawHazards();
+  drawExplosions();
+  drawDeliveryBursts();
+  drawParticles();
+  drawPlayer();
+  drawFloatingTexts();
+  drawTip();
+  drawScreenEffects();
+  ctx.restore();
+}
+
+function loop(now) {
+  if (!running) return;
+  fpsFrames += 1;
+  if (now - fpsLastTime >= 500) {
+    fps = Math.round((fpsFrames * 1000) / (now - fpsLastTime));
+    fpsFrames = 0;
+    fpsLastTime = now;
+    if (showPerf) fpsMeter.textContent = `${fps} FPS`;
+  }
+  const rawDt = Math.min(0.033, (now - lastTime) / 1000);
+  const dt = slowMoTime > 0 ? rawDt * 0.45 : rawDt;
+  lastTime = now;
+  if (!paused) {
+    movePlayer(dt);
+    updateWorld(dt);
+  }
+  draw();
+  animationId = requestAnimationFrame(loop);
+}
+
+function drawFloatingTexts() {
+  floatingTexts.forEach((floatText) => {
+    const progress = 1 - floatText.life / floatText.maxLife;
+    const alpha = Math.max(0, floatText.life / floatText.maxLife);
+    const scale = 0.82 + Math.sin(Math.min(1, progress) * Math.PI) * 0.34;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(floatText.x, floatText.y);
+    ctx.scale(scale, scale);
+    ctx.font = "bold 20px Arial";
+    ctx.textAlign = "center";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(16,32,51,0.56)";
+    ctx.strokeText(floatText.text, 0, 0);
+    ctx.fillStyle = floatText.color;
+    ctx.fillText(floatText.text, 0, 0);
+    ctx.restore();
+  });
+}
+
+function normalizeKey(key) {
+  return key.length === 1 ? key.toLowerCase() : key.toLowerCase();
+}
+
+function isMovementKey(key) {
+  return ["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key);
+}
+
+function syncMoveButtons() {
+  moveButtons.forEach((button) => {
+    button.classList.toggle("active", heldDirections.has(button.dataset.move));
+  });
+}
+
+window.addEventListener("keydown", (event) => {
+  const key = normalizeKey(event.key);
+  if (key === "p") {
+    togglePause();
+    event.preventDefault();
+    return;
+  }
+  if (isMovementKey(key)) {
+    keys.add(key);
+    event.preventDefault();
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  keys.delete(normalizeKey(event.key));
+});
+
+window.addEventListener("blur", () => {
+  keys.clear();
+  heldDirections.clear();
+  syncMoveButtons();
+});
+
+moveButtons.forEach((button) => {
+  const direction = button.dataset.move;
+
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    heldDirections.add(direction);
+    syncMoveButtons();
+  });
+
+  button.addEventListener("pointerup", () => {
+    heldDirections.delete(direction);
+    syncMoveButtons();
+  });
+
+  button.addEventListener("pointercancel", () => {
+    heldDirections.delete(direction);
+    syncMoveButtons();
+  });
+
+  button.addEventListener("lostpointercapture", () => {
+    heldDirections.delete(direction);
+    syncMoveButtons();
+  });
+});
+
+startBtn.addEventListener("click", newGame);
+restartBtn.addEventListener("click", newGame);
+pauseBtn.addEventListener("click", togglePause);
+audioBtn.addEventListener("click", () => {
+  audioMuted = !audioMuted;
+  saveData.audioMuted = audioMuted;
+  saveProgress();
+  audioBtn.textContent = audioMuted ? "Som: Off" : "Som: On";
+  if (!audioMuted) {
+    ensureAudio();
+    playSound("pickup");
+  }
+});
+perfBtn.addEventListener("click", () => {
+  showPerf = !showPerf;
+  fpsMeter.hidden = !showPerf;
+  perfBtn.classList.toggle("active", showPerf);
+});
+overlay.addEventListener("click", (event) => {
+  const action = event.target?.dataset?.action;
+  if (action === "resume") togglePause();
+  if (action === "new-game") newGame();
+  if (action === "next-level") {
+    running = true;
+    overlay.classList.add("hidden");
+    nextLevel();
+    lastTime = performance.now();
+    timerId = setInterval(tickClock, 1000);
+    animationId = requestAnimationFrame(loop);
+  }
+});
+phaseCardsEl?.addEventListener("click", (event) => {
+  const target = event.target;
+  const button = target instanceof Element ? target.closest(".phase-card") : null;
+  if (!button || button.disabled) return;
+  selectedLevel = Number(button.dataset.phase);
+  renderPhaseCards();
+  const phase = phaseConfigs[selectedLevel - 1];
+  setLesson(`${phase.name}: ${phase.mission}.`);
+});
+player = makePlayer();
+selectedLevel = Math.min(selectedLevel, saveData.unlockedLevel);
+audioBtn.textContent = audioMuted ? "Som: Off" : "Som: On";
+renderPhaseCards();
+items = makeItems(8);
+hazards = makeHazards(2);
+score = 0;
+level = 1;
+timeLeft = 60;
+carried = null;
+delivered = 0;
+targetCount = 8;
+combo = 1;
+floatingTexts = [];
+explosions = [];
+deliveryBursts = [];
+shakeTime = 0;
+shakeStrength = 0;
+running = false;
+setLesson("Separe cada resíduo pela cor da lixeira.");
+updateHud();
+draw();

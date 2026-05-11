@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Missão Reciclar</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game">
+      <header class="hud">
+        <div class="brand-block">
+          <p id="lbl_subtitle">Jogo educativo</p>
+          <h1 id="lbl_title">Missão Reciclar</h1>
+        </div>
+        <div class="stats">
+          <label class="language-control" for="langSelect">
+            <span>Idioma</span>
+            <select id="langSelect" class="lang-select">
+              <option value="pt" selected>Português</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </label>
+          <span class="stat-card stat-level"><span id="lbl_level">Fase</span> <strong id="level">1</strong></span>
+          <span class="stat-card stat-score"><span id="lbl_score">Pontos</span> <strong id="score">0</strong></span>
+          <span class="stat-card stat-time"><span id="lbl_time">Tempo</span> <strong id="time">60</strong></span>
+        </div>
+      </header>
+
+      <section class="status-panel" id="statusPanel">
+        <div>
+          <span><img src="assets/recycle.svg" alt="" /> <span id="lbl_mission">Missão</span></span>
+          <strong id="mission">Recicle todos os itens</strong>
+        </div>
+        <div>
+          <span><span id="lbl_progress">Progresso</span></span>
+          <strong id="progressText">0/8</strong>
+        </div>
+        <div>
+          <span><span id="lbl_carry">Carregando</span></span>
+          <strong id="carryText">Nada</strong>
+        </div>
+        <div>
+          <span><span id="lbl_combo">Combo</span></span>
+          <strong id="comboText">x1</strong>
+        </div>
+      </section>
+
+      <section class="lesson-panel" aria-live="polite">
+        <span>Dica rápida</span>
+        <strong id="lessonText">Separe cada resíduo pela cor da lixeira.</strong>
+      </section>
+
+      <section class="phase-select" aria-label="Progresso das fases">
+        <div>
+          <span>Campanha</span>
+          <strong>Escolha uma área liberada</strong>
+        </div>
+        <div id="phaseCards" class="phase-cards"></div>
+      </section>
+
+      <section class="stage-wrap">
+        <canvas id="gameCanvas" width="960" height="640" aria-label="Área do jogo Missão Reciclar"></canvas>
+        <div class="overlay" id="overlay">
+          <h2 id="lbl_overlay_title">Missão Reciclar</h2>
+          <p id="lbl_overlay_text">
+            Separe resíduos, evite bombas e avance por quatro áreas da cidade.
+            Use cada cor de lixeira para aprender reciclagem jogando.
+          </p>
+          <button id="startBtn" type="button">Jogar</button>
+        </div>
+      </section>
+
+      <footer class="controls">
+        <div>
+          <strong id="lbl_controls">Controles</strong>
+          <span id="lbl_controls_desc">WASD, setas ou botões para mover</span>
+        </div>
+        <div class="quick-actions">
+          <button id="pauseBtn" class="utility-btn" type="button">Pausar</button>
+          <button id="audioBtn" class="utility-btn" type="button">Som: On</button>
+          <button id="perfBtn" class="utility-btn" type="button">FPS</button>
+          <span id="fpsMeter" class="fps-meter" hidden>60 FPS</span>
+        </div>
+        <div class="dpad" aria-label="Controles de movimento na tela">
+          <button class="move-btn up" data-move="up" type="button" aria-label="Mover para cima">&uarr;</button>
+          <button class="move-btn left" data-move="left" type="button" aria-label="Mover para esquerda">&larr;</button>
+          <button class="move-btn down" data-move="down" type="button" aria-label="Mover para baixo">&darr;</button>
+          <button class="move-btn right" data-move="right" type="button" aria-label="Mover para direita">&rarr;</button>
+        </div>
+        <button id="restartBtn" type="button">Reiniciar</button>
+      </footer>
+    </main>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
