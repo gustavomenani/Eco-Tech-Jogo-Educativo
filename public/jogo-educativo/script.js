@@ -512,7 +512,7 @@ function tickClock() {
   if (!running || paused) return;
   timeLeft -= 1;
   updateHud();
-  if (timeLeft <= 0) endGame("Tempo esgotado", "Tente separar mais residuos antes do tempo acabar.");
+  if (timeLeft <= 0) endGame("Tempo esgotado", "Tente separar mais resíduos antes do tempo acabar.");
 }
 
 function updateHud() {
@@ -593,7 +593,7 @@ function togglePause() {
   keys.clear();
   heldDirections.clear();
   syncMoveButtons();
-  pauseBtn.textContent = paused ? "Continuar" : "Pausar";
+  pauseBtn.textContent = paused ? "Continuar partida" : "Pausar";
   if (paused) showPauseOverlay();
   else overlay.classList.add("hidden");
 }
@@ -2413,8 +2413,8 @@ function drawTip() {
   ctx.font = "bold 15px Arial";
   ctx.textAlign = "left";
   const text = carried
-    ? `Levando ${carried.name}: entre no circulo da lixeira de ${carried.type}.`
-    : "Pegue um residuo e leve para a lixeira correta.";
+    ? `Levando ${carried.name}: entre no círculo da lixeira de ${carried.type}.`
+    : "Pegue um resíduo e leve para a lixeira correta.";
   ctx.fillText(text, TIP_BOX.x + 16, TIP_BOX.y + 36);
 }
 

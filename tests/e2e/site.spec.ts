@@ -99,6 +99,9 @@ test("renders the educational game in Portuguese only", async ({ page }) => {
   await expect(page.locator("#progressText")).toHaveText("0/8");
   await expect(page.getByText("Conclua ou reinicie a fase atual")).toBeVisible();
   await expect(page.getByRole("button", { name: /Fase 1 Parque Escola/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Pausar" }).click();
+  await expect(page.getByRole("button", { name: "Continuar partida" })).toBeVisible();
+  await expect(page.locator("#overlay").getByRole("button", { name: "Continuar" })).toBeVisible();
   expect(consoleMessages).toEqual([]);
 });
 
