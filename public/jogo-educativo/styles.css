@@ -321,7 +321,8 @@ canvas {
   border-color: rgba(47, 111, 237, 0.45);
 }
 
-.phase-card.locked {
+.phase-card.locked,
+.phase-card.in-play {
   opacity: 0.52;
   cursor: not-allowed;
 }

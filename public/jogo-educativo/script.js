@@ -17,6 +17,7 @@ const audioBtn = document.querySelector("#audioBtn");
 const perfBtn = document.querySelector("#perfBtn");
 const fpsMeter = document.querySelector("#fpsMeter");
 const phaseCardsEl = document.querySelector("#phaseCards");
+const phaseSelectHintEl = document.querySelector("#phaseSelectHint");
 
 const BIN_W = 150;
 const BIN_H = 74;
@@ -479,6 +480,7 @@ function newGame() {
   pauseBtn.textContent = "Pausar";
   setLesson("Separe cada resíduo pela cor certa. Azul: papel, vermelho: plástico, amarelo: metal, verde: vidro.");
   updateHud();
+  renderPhaseCards();
   timerId = setInterval(tickClock, 1000);
   animationId = requestAnimationFrame(loop);
   playSound("level");
@@ -538,6 +540,7 @@ function endGame(title, text) {
   `;
   overlay.classList.remove("hidden");
   pauseBtn.textContent = "Pausar";
+  renderPhaseCards();
   playSound(title.toLowerCase().includes("vitoria") ? "level" : "error");
 }
 
@@ -1675,16 +1678,21 @@ function completeLevelSave(levelNumber, points) {
 
 function renderPhaseCards() {
   if (!phaseCardsEl) return;
+  if (phaseSelectHintEl) {
+    phaseSelectHintEl.textContent = running ? "Conclua ou reinicie a fase atual" : "Escolha uma área liberada";
+  }
+
   phaseCardsEl.innerHTML = phaseConfigs.map((phase, index) => {
     const levelNumber = index + 1;
     const locked = levelNumber > saveData.unlockedLevel;
+    const disabled = locked || running;
     const active = levelNumber === selectedLevel;
     const best = saveData.bestScores[index] || 0;
     return `
-      <button class="phase-card ${active ? "active" : ""} ${locked ? "locked" : ""}" data-phase="${levelNumber}" type="button" ${locked ? "disabled" : ""}>
+      <button class="phase-card ${active ? "active" : ""} ${locked ? "locked" : ""} ${running && !locked ? "in-play" : ""}" data-phase="${levelNumber}" type="button" ${disabled ? "disabled" : ""}>
         <span>Fase ${levelNumber}</span>
         <strong>${phase.name}</strong>
-        <small>${locked ? "Bloqueada" : `Recorde ${best}`}</small>
+        <small>${locked ? "Bloqueada" : running ? "Em andamento" : `Recorde ${best}`}</small>
       </button>
     `;
   }).join("");
@@ -2570,6 +2578,7 @@ overlay.addEventListener("click", (event) => {
   }
 });
 phaseCardsEl?.addEventListener("click", (event) => {
+  if (running) return;
   const target = event.target;
   const button = target instanceof Element ? target.closest(".phase-card") : null;
   if (!button || button.disabled) return;
