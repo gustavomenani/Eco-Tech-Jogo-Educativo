@@ -2230,18 +2230,16 @@ function drawBackHair(x, y) {
 
 function drawShirtDetail(x, y) {
   ctx.save();
-  ctx.strokeStyle = "rgba(234,255,239,0.86)";
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
+  ctx.fillStyle = "rgba(234,255,239,0.24)";
   ctx.beginPath();
-  ctx.arc(x, y - 2, 7, -0.2, Math.PI * 1.15);
-  ctx.moveTo(x + 4, y - 9);
-  ctx.lineTo(x + 8, y - 3);
-  ctx.lineTo(x + 2, y - 2);
-  ctx.moveTo(x - 4, y + 6);
-  ctx.lineTo(x - 8, y);
-  ctx.lineTo(x - 2, y - 1);
+  ctx.arc(x, y, 7.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(234,255,239,0.72)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y, 7.5, 0, Math.PI * 2);
   ctx.stroke();
+  drawSvgIcon(recycleIcon, x - 5.5, y - 5.5, 11, "rgba(234,255,239,0.9)", 0.9);
   ctx.restore();
 }
 
