@@ -70,6 +70,17 @@ const phaseConfigs = [
   { name: "Eco Desafio Final", target: 18, hazards: 7, time: 94, mission: "Complete a reciclagem da cidade", tint: "rgba(255, 255, 255, 0.12)", accent: "#21996f", learnings: ["Reciclar reduz resíduos enviados a aterros.", "A separação correta melhora toda a cadeia."] }
 ];
 
+const phaseMapThemes = [
+  { groundTop: "#a7d98a", groundBottom: "#6dbb74", path: "#f0e3bc", pathEdge: "#d8c69d", detail: "#24b77b", label: "PARQUE" },
+  { groundTop: "#dbe7df", groundBottom: "#b7c7bf", path: "#ded7c5", pathEdge: "#aeb8b1", detail: "#f4be32", label: "PRACA" },
+  { groundTop: "#aee1bf", groundBottom: "#5fb989", path: "#d7c49d", pathEdge: "#b59468", detail: "#2f6fed", label: "LAGO" },
+  { groundTop: "#ffe8a8", groundBottom: "#f7c979", path: "#f9df9c", pathEdge: "#d9a95f", detail: "#38bdf8", label: "PRAIA" },
+  { groundTop: "#79ba68", groundBottom: "#2f7d4a", path: "#ceb98a", pathEdge: "#8d7347", detail: "#16a34a", label: "FLORESTA" },
+  { groundTop: "#a8b0b9", groundBottom: "#6b7280", path: "#7f8791", pathEdge: "#4b5563", detail: "#64748b", label: "INDUSTRIA" },
+  { groundTop: "#bfdc94", groundBottom: "#79b36a", path: "#d7c99a", pathEdge: "#9c8a58", detail: "#eab308", label: "COOPERATIVA" },
+  { groundTop: "#8fb6c8", groundBottom: "#49757f", path: "#8a999e", pathEdge: "#334155", detail: "#21996f", label: "CIDADE" }
+];
+
 const educationTips = {
   papel: "Papel e papelão vão na lixeira azul. Eles podem voltar como cadernos, caixas e embalagens.",
   plastico: "Plástico vai na lixeira vermelha. Garrafas e sacolas precisam estar limpas e secas.",
@@ -782,7 +793,8 @@ function updateWorld(dt) {
 
 function drawBackground() {
   const phase = currentPhase();
-  if (mapImage.complete && mapImage.naturalWidth > 0) {
+  const phaseIndex = Math.min(level - 1, phaseMapThemes.length - 1);
+  if (phaseIndex === 0 && mapImage.complete && mapImage.naturalWidth > 0) {
     ctx.save();
     ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
     ctx.fillStyle = phase.tint;
@@ -796,24 +808,359 @@ function drawBackground() {
     return;
   }
 
-  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  sky.addColorStop(0, "#9fd8b4");
-  sky.addColorStop(0.5, "#79c48f");
-  sky.addColorStop(1, "#62aa79");
-  ctx.fillStyle = sky;
+  drawGeneratedMap(phase, phaseMapThemes[phaseIndex]);
+  drawVignette();
+}
+
+function drawGeneratedMap(phase, theme) {
+  const ground = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  ground.addColorStop(0, theme.groundTop);
+  ground.addColorStop(1, theme.groundBottom);
+  ctx.fillStyle = ground;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   drawSunbeams();
-  drawLawnTexture();
+  drawMapTexture(theme);
+  drawThemeBase(theme);
+  drawThemePath(theme);
+  drawThemeDetails(theme);
   drawPhaseIdentity(phase);
-  drawLake();
-  drawPaths();
   drawEcoCenter();
+  drawAmbientLeaves();
+}
 
-  flowers.forEach(drawFlower);
+function drawMapTexture(theme) {
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  for (let y = 150; y < canvas.height; y += 28) {
+    for (let x = 0; x < canvas.width; x += 36) {
+      ctx.fillStyle = (x + y) % 4 === 0 ? "#ffffff" : theme.detail;
+      ctx.beginPath();
+      ctx.ellipse(x + ((y * 2) % 24), y, 12, 3, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
 
-  scenery.forEach(drawTree);
-  drawVignette();
+function drawThemePath(theme) {
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = theme.pathEdge;
+  ctx.lineWidth = 72;
+  ctx.beginPath();
+  if (level === 4) {
+    ctx.moveTo(-20, 522);
+    ctx.bezierCurveTo(170, 470, 324, 535, 486, 450);
+    ctx.bezierCurveTo(642, 368, 724, 312, canvas.width + 20, 292);
+  } else if (level === 6 || level === 8) {
+    ctx.moveTo(-20, 472);
+    ctx.lineTo(340, 420);
+    ctx.lineTo(610, 520);
+    ctx.lineTo(canvas.width + 20, 410);
+  } else if (level === 7) {
+    ctx.moveTo(-20, 516);
+    ctx.bezierCurveTo(210, 420, 390, 505, 520, 380);
+    ctx.bezierCurveTo(640, 270, 790, 315, canvas.width + 20, 236);
+  } else {
+    ctx.moveTo(-20, canvas.height - 38);
+    ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
+    ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = theme.path;
+  ctx.lineWidth = 54;
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(40, 52, 62, 0.24)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash(level === 6 || level === 8 ? [26, 22] : [10, 12]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawThemeBase(theme) {
+  if (level === 2) drawPlazaBase(theme);
+  else if (level === 3) drawLakeBase();
+  else if (level === 4) drawBeachBase();
+  else if (level === 5) drawForestBase();
+  else if (level === 6) drawIndustrialBase();
+  else if (level === 7) drawCooperativeBase();
+  else if (level >= 8) drawCityBase();
+  else {
+    drawLake();
+    flowers.forEach(drawFlower);
+    scenery.forEach(drawTree);
+  }
+}
+
+function drawThemeDetails(theme) {
+  drawMapLabel(theme);
+  if (level === 2) drawPlazaDetails();
+  else if (level === 3) drawLakeDetails();
+  else if (level === 4) drawBeachDetails();
+  else if (level === 5) drawForestDetails();
+  else if (level === 6) drawIndustrialDetails();
+  else if (level === 7) drawCooperativeDetails();
+  else if (level >= 8) drawCityDetails();
+}
+
+function drawMapLabel(theme) {
+  ctx.save();
+  ctx.globalAlpha = 0.82;
+  fillGradientRoundedRect(22, 566, 122, 32, 8, "rgba(255,255,255,0.84)", "rgba(235,249,242,0.72)");
+  ctx.fillStyle = theme.detail;
+  ctx.font = "bold 13px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(theme.label, 83, 587);
+  ctx.restore();
+}
+
+function drawPlazaBase(theme) {
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = "rgba(255,255,255,0.72)";
+  ctx.lineWidth = 2;
+  for (let x = 0; x < canvas.width; x += 64) {
+    ctx.beginPath();
+    ctx.moveTo(x, 150);
+    ctx.lineTo(x - 120, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 170; y < canvas.height; y += 54) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y - 90);
+    ctx.stroke();
+  }
+  ctx.restore();
+  drawSoftEllipse(748, 342, 86, 50, "rgba(255,255,255,0.34)");
+  strokeRoundedRect(672, 296, 152, 92, 8, "rgba(117,94,61,0.25)", 4);
+  fillGradientRoundedRect(180, 438, 142, 18, 6, "#9a6a3c", "#5e3b22");
+  fillGradientRoundedRect(610, 498, 142, 18, 6, "#9a6a3c", "#5e3b22");
+  fillRoundedRect(202, 456, 10, 28, 4, "#5e3b22");
+  fillRoundedRect(292, 456, 10, 28, 4, "#5e3b22");
+  fillRoundedRect(632, 516, 10, 28, 4, "#5e3b22");
+  fillRoundedRect(722, 516, 10, 28, 4, "#5e3b22");
+  ctx.fillStyle = theme.detail;
+  for (let x = 74; x < 910; x += 110) drawSoftEllipse(x, 224 + (x % 3) * 22, 17, 17, "rgba(244,190,50,0.45)");
+}
+
+function drawLakeBase() {
+  const water = ctx.createLinearGradient(0, 178, 0, 570);
+  water.addColorStop(0, "#88dff4");
+  water.addColorStop(1, "#2384bd");
+  ctx.fillStyle = water;
+  ctx.beginPath();
+  ctx.ellipse(225, 405, 240, 174, -0.18, 0, Math.PI * 2);
+  ctx.ellipse(50, 520, 168, 124, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.58)";
+  ctx.lineWidth = 4;
+  for (let y = 290; y < 536; y += 48) {
+    ctx.beginPath();
+    ctx.moveTo(38, y);
+    ctx.quadraticCurveTo(180, y + 26, 384, y - 8);
+    ctx.stroke();
+  }
+}
+
+function drawBeachBase() {
+  const ocean = ctx.createLinearGradient(610, 0, canvas.width, 0);
+  ocean.addColorStop(0, "#6ed5ee");
+  ocean.addColorStop(1, "#1677b8");
+  ctx.fillStyle = ocean;
+  ctx.beginPath();
+  ctx.moveTo(650, 145);
+  ctx.bezierCurveTo(594, 260, 680, 350, 616, 452);
+  ctx.bezierCurveTo(560, 548, 650, 620, canvas.width, 640);
+  ctx.lineTo(canvas.width, 145);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.68)";
+  ctx.lineWidth = 6;
+  for (let y = 225; y < 600; y += 58) {
+    ctx.beginPath();
+    ctx.moveTo(620, y);
+    ctx.quadraticCurveTo(744, y + 34, 940, y - 4);
+    ctx.stroke();
+  }
+}
+
+function drawForestBase() {
+  for (let i = 0; i < 24; i += 1) {
+    const x = 35 + (i * 83) % 900;
+    const y = 165 + (i * 67) % 410;
+    drawTree({ x, y, size: 32 + (i % 4) * 9 });
+  }
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = "#0d3f31";
+  for (let i = 0; i < 18; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(70 + (i * 97) % 840, 224 + (i * 53) % 330, 42, 12, i * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawIndustrialBase() {
+  ctx.save();
+  ctx.fillStyle = "rgba(31,41,55,0.26)";
+  ctx.fillRect(0, 152, canvas.width, 488);
+  ctx.strokeStyle = "rgba(255,255,255,0.16)";
+  ctx.lineWidth = 2;
+  for (let x = 0; x < canvas.width; x += 72) {
+    ctx.beginPath();
+    ctx.moveTo(x, 152);
+    ctx.lineTo(x - 190, 640);
+    ctx.stroke();
+  }
+  ctx.restore();
+  for (let i = 0; i < 5; i += 1) {
+    fillGradientRoundedRect(560 + i * 74, 220 - i * 12, 56, 116 + i * 10, 4, "#64748b", "#334155");
+    fillRoundedRect(572 + i * 74, 238 - i * 12, 9, 9, 2, "rgba(255,247,168,0.68)");
+    fillRoundedRect(596 + i * 74, 266 - i * 12, 9, 9, 2, "rgba(255,247,168,0.52)");
+  }
+}
+
+function drawCooperativeBase() {
+  for (let i = 0; i < 6; i += 1) {
+    const x = 98 + i * 132;
+    fillGradientRoundedRect(x, 358 + (i % 2) * 44, 78, 54, 7, "#e8d28a", "#b79245");
+    strokeRoundedRect(x, 358 + (i % 2) * 44, 78, 54, 7, "rgba(67,48,24,0.24)", 2);
+  }
+  ctx.save();
+  ctx.strokeStyle = "rgba(36,93,64,0.38)";
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(150, 518);
+  ctx.lineTo(792, 432);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.52)";
+  ctx.lineWidth = 2;
+  for (let x = 172; x < 780; x += 46) {
+    ctx.beginPath();
+    ctx.moveTo(x, 515);
+    ctx.lineTo(x + 28, 493);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCityBase() {
+  const sky = ctx.createLinearGradient(0, 150, 0, 360);
+  sky.addColorStop(0, "rgba(15,23,42,0.24)");
+  sky.addColorStop(1, "rgba(15,23,42,0)");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 150, canvas.width, 250);
+  for (let i = 0; i < 12; i += 1) {
+    const x = 486 + i * 42;
+    const h = 52 + (i % 4) * 24;
+    fillGradientRoundedRect(x, 246 - h, 32, h, 3, "#334155", "#102033");
+    fillRoundedRect(x + 8, 226 - h, 5, 5, 1, "rgba(255,247,168,0.68)");
+    fillRoundedRect(x + 19, 250 - h, 5, 5, 1, "rgba(190,242,100,0.55)");
+  }
+}
+
+function drawPlazaDetails() {
+  ctx.fillStyle = "#7c5c37";
+  for (let i = 0; i < 4; i += 1) {
+    fillRoundedRect(122 + i * 34, 302, 20, 48, 5, "#9f7340");
+  }
+  drawSoftEllipse(748, 338, 42, 18, "rgba(80,160,185,0.44)");
+  drawSoftEllipse(748, 326, 20, 8, "rgba(255,255,255,0.56)");
+}
+
+function drawLakeDetails() {
+  for (let i = 0; i < 10; i += 1) {
+    drawSoftEllipse(82 + (i * 61) % 320, 324 + (i * 43) % 186, 14, 6, "rgba(24,135,91,0.72)");
+  }
+  fillGradientRoundedRect(392, 420, 132, 24, 6, "#ad7d45", "#71491f");
+  ctx.strokeStyle = "rgba(80,51,26,0.45)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(406, 406);
+  ctx.lineTo(406, 468);
+  ctx.moveTo(508, 406);
+  ctx.lineTo(508, 468);
+  ctx.stroke();
+}
+
+function drawBeachDetails() {
+  const umbrellas = [
+    { x: 178, y: 332, color: "#ef4444" },
+    { x: 380, y: 500, color: "#2f6fed" },
+    { x: 528, y: 268, color: "#f4be32" }
+  ];
+  umbrellas.forEach((umbrella) => {
+    ctx.fillStyle = umbrella.color;
+    ctx.beginPath();
+    ctx.arc(umbrella.x, umbrella.y, 28, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#7c5636";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(umbrella.x, umbrella.y);
+    ctx.lineTo(umbrella.x + 18, umbrella.y + 64);
+    ctx.stroke();
+  });
+}
+
+function drawForestDetails() {
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 4; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(108 + i * 190, 190);
+    ctx.bezierCurveTo(150 + i * 180, 260, 88 + i * 214, 390, 168 + i * 166, 520);
+    ctx.stroke();
+  }
+}
+
+function drawIndustrialDetails() {
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = "#e5e7eb";
+  for (let i = 0; i < 5; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(600 + i * 74 + Math.sin(ambientTime + i) * 8, 88 - i * 8, 28 + i * 4, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  fillRoundedRect(110, 394, 150, 64, 8, "rgba(15,23,42,0.32)");
+  fillRoundedRect(122, 408, 126, 12, 4, "rgba(250,204,21,0.7)");
+}
+
+function drawCooperativeDetails() {
+  for (let i = 0; i < 4; i += 1) {
+    fillGradientRoundedRect(610 + i * 56, 250 + (i % 2) * 34, 44, 30, 5, "#94a3b8", "#475569");
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(616 + i * 56, 266 + (i % 2) * 34);
+    ctx.lineTo(646 + i * 56, 266 + (i % 2) * 34);
+    ctx.stroke();
+  }
+  drawSoftEllipse(290, 272, 62, 18, "rgba(255,247,168,0.36)");
+}
+
+function drawCityDetails() {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = "rgba(52,211,153,0.5)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(64, 550);
+  ctx.bezierCurveTo(260, 468, 430, 590, 660, 456);
+  ctx.bezierCurveTo(760, 398, 840, 426, 920, 372);
+  ctx.stroke();
+  ctx.restore();
+  for (let i = 0; i < 8; i += 1) {
+    drawSoftEllipse(80 + i * 106, 254 + (i % 3) * 72, 20, 20, i % 2 ? "rgba(52,211,153,0.28)" : "rgba(59,130,246,0.25)");
+  }
 }
 
 function drawPhaseIdentity(phase) {
@@ -981,20 +1328,6 @@ function drawSunbeams() {
   ctx.restore();
 }
 
-function drawLawnTexture() {
-  ctx.save();
-  ctx.globalAlpha = 0.16;
-  for (let y = 136; y < canvas.height; y += 26) {
-    for (let x = 0; x < canvas.width; x += 34) {
-      ctx.fillStyle = (x + y) % 3 === 0 ? "#ffffff" : "#1f744f";
-      ctx.beginPath();
-      ctx.ellipse(x + ((y * 3) % 22), y, 13, 3, -0.35, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  ctx.restore();
-}
-
 function drawLake() {
   const water = ctx.createLinearGradient(0, 170, 0, 330);
   water.addColorStop(0, "#85d7e6");
@@ -1017,37 +1350,6 @@ function drawLake() {
   ctx.beginPath();
   ctx.ellipse(854, 314, 34, 6, -0.12, 0, Math.PI * 2);
   ctx.fill();
-}
-
-function drawPaths() {
-  ctx.save();
-  ctx.strokeStyle = "#d8c69d";
-  ctx.lineWidth = 72;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(-20, canvas.height - 38);
-  ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
-  ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
-  ctx.stroke();
-
-  ctx.strokeStyle = "#f0e3bc";
-  ctx.lineWidth = 54;
-  ctx.beginPath();
-  ctx.moveTo(-20, canvas.height - 38);
-  ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
-  ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
-  ctx.stroke();
-
-  ctx.strokeStyle = "rgba(135, 105, 64, 0.22)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([10, 12]);
-  ctx.beginPath();
-  ctx.moveTo(-20, canvas.height - 38);
-  ctx.bezierCurveTo(210, 530, 394, 410, 526, 320);
-  ctx.bezierCurveTo(668, 224, 760, 214, canvas.width + 20, 190);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
 }
 
 function drawEcoCenter() {

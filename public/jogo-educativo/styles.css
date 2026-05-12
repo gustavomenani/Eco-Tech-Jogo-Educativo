@@ -73,38 +73,6 @@ button:hover {
   min-width: 260px;
 }
 
-.language-control {
-  min-height: 58px;
-  min-width: 132px;
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 8px 12px;
-  border: 1px solid rgba(126, 149, 169, 0.3);
-  border-radius: 8px;
-  background: linear-gradient(180deg, #ffffff 0%, #f5fbf8 100%);
-}
-
-.language-control span {
-  color: #35735d;
-  font-size: 0.66rem;
-  font-weight: 900;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.lang-select {
-  width: 100%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .hud {
   margin-bottom: 12px;
   box-shadow:
@@ -548,13 +516,8 @@ canvas {
     justify-content: stretch;
   }
 
-  .language-control,
   .stat-card {
     min-width: 0;
-  }
-
-  .language-control {
-    grid-column: 1 / -1;
   }
 
   .stats span {

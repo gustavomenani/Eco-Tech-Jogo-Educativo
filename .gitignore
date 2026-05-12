@@ -12,5 +12,6 @@ artifacts/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+dev-server.*.log
 Thumbs.db
 .DS_Store

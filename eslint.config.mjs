@@ -5,7 +5,7 @@ const config = [
   ...nextCoreWebVitals,
   ...nextTypeScript,
   {
-    ignores: ["dist/**", "public/assets/**", "src/assets/**"]
+    ignores: [".next/**", "dist/**", "node_modules/**", "public/assets/**", "src/assets/**"]
   }
 ];
 

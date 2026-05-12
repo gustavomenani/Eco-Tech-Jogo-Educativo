@@ -45,7 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const config = getSiteConfig();
 
   return (
-    <html lang={config.language} className={`${displayFont.variable} ${bodyFont.variable}`}>
+    <html lang={config.language} data-scroll-behavior="smooth" className={`${displayFont.variable} ${bodyFont.variable}`}>
       <body className="font-body antialiased">
         <a
           href="#main-content"
