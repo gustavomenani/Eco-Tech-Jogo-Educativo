@@ -152,6 +152,14 @@ const ambientLeaves = Array.from({ length: 18 }, (_, index) => ({
   color: ["rgba(255,238,140,0.55)", "rgba(188,235,151,0.5)", "rgba(255,190,128,0.45)"][index % 3]
 }));
 
+const groundBlades = Array.from({ length: 48 }, (_, index) => ({
+  x: 18 + ((index * 53) % 920),
+  y: 540 + ((index * 29) % 82),
+  h: 10 + (index % 5) * 3,
+  tilt: ((index % 7) - 3) * 1.8,
+  phase: index * 0.45
+}));
+
 function rectsTouch(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
@@ -807,6 +815,8 @@ function drawBackground() {
     drawPhaseIdentity(phase);
     drawEcoCenter();
     drawAmbientLeaves();
+    drawMapAtmosphere(phaseMapThemes[0]);
+    drawForegroundGrass(phaseMapThemes[0]);
     drawVignette();
     return;
   }
@@ -830,6 +840,8 @@ function drawGeneratedMap(phase, theme) {
   drawPhaseIdentity(phase);
   drawEcoCenter();
   drawAmbientLeaves();
+  drawMapAtmosphere(theme);
+  drawForegroundGrass(theme);
 }
 
 function drawMapTexture(theme) {
@@ -843,6 +855,52 @@ function drawMapTexture(theme) {
       ctx.fill();
     }
   }
+  ctx.restore();
+}
+
+function drawMapAtmosphere(theme) {
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const centerGlow = ctx.createRadialGradient(430, 310, 70, 430, 310, 470);
+  centerGlow.addColorStop(0, "rgba(255,255,255,0.22)");
+  centerGlow.addColorStop(0.48, `${theme.detail}22`);
+  centerGlow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = centerGlow;
+  ctx.fillRect(0, 130, canvas.width, canvas.height - 130);
+
+  ctx.globalAlpha = 0.18 + Math.sin(ambientTime * 1.2) * 0.04;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < 10; i += 1) {
+    const x = 74 + ((i * 97 + Math.sin(ambientTime * 0.8 + i) * 10) % 820);
+    const y = 178 + ((i * 61) % 360);
+    ctx.beginPath();
+    ctx.ellipse(x, y, 18 + (i % 3) * 6, 4 + (i % 2) * 2, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.save();
+  const lowerShade = ctx.createLinearGradient(0, 430, 0, canvas.height);
+  lowerShade.addColorStop(0, "rgba(15,23,42,0)");
+  lowerShade.addColorStop(1, "rgba(15,23,42,0.16)");
+  ctx.fillStyle = lowerShade;
+  ctx.fillRect(0, 430, canvas.width, canvas.height - 430);
+  ctx.restore();
+}
+
+function drawForegroundGrass(theme) {
+  ctx.save();
+  ctx.lineCap = "round";
+  groundBlades.forEach((blade, index) => {
+    const sway = Math.sin(ambientTime * 1.8 + blade.phase) * 2;
+    ctx.globalAlpha = 0.22 + (index % 4) * 0.035;
+    ctx.strokeStyle = index % 3 === 0 ? shade(theme.detail, -18) : "rgba(255,255,255,0.42)";
+    ctx.lineWidth = 2 + (index % 2);
+    ctx.beginPath();
+    ctx.moveTo(blade.x, blade.y);
+    ctx.quadraticCurveTo(blade.x + blade.tilt + sway, blade.y - blade.h * 0.6, blade.x + blade.tilt * 1.8 + sway, blade.y - blade.h);
+    ctx.stroke();
+  });
   ctx.restore();
 }
 
@@ -1627,11 +1685,20 @@ function drawItems() {
     const bob = Math.sin(ambientTime * 3.2 + item.phase) * 5;
     const spin = Math.sin(ambientTime * 2.1 + item.phase) * 0.1 + item.spin;
     ctx.save();
-    ctx.shadowColor = "rgba(24,32,42,0.2)";
-    ctx.shadowBlur = 8 + Math.max(0, bob);
+    ctx.shadowColor = item.color;
+    ctx.shadowBlur = 10 + Math.max(0, bob) * 0.8;
     ctx.shadowOffsetY = 6;
     ctx.translate(item.x + item.w / 2, item.y + item.h / 2 + bob);
     ctx.rotate(spin);
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = 0.18 + Math.sin(ambientTime * 4 + item.phase) * 0.05;
+    const aura = ctx.createRadialGradient(0, 0, 2, 0, 0, item.w * 0.9);
+    aura.addColorStop(0, item.color);
+    aura.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = aura;
+    ctx.fillRect(-item.w, -item.h, item.w * 2, item.h * 2);
+    ctx.restore();
     drawItemIcon(-item.w / 2, -item.h / 2, item.w, item.h, item);
     ctx.globalAlpha = 0.22 + Math.sin(ambientTime * 5 + item.phase) * 0.1;
     ctx.strokeStyle = item.color;
