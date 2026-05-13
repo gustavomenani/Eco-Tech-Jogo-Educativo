@@ -73,7 +73,7 @@ export function SiteHeader({ brand, nav }: SiteHeaderProps) {
       <div className="shell">
         <div
           ref={headerRef}
-          className="glass-panel motion-rise relative flex items-center justify-between gap-3 rounded-[26px] px-4 py-3 md:rounded-[28px] md:px-6 md:py-3"
+          className="glass-panel relative flex items-center justify-between gap-3 rounded-[26px] px-4 py-3 md:rounded-[28px] md:px-6 md:py-3"
         >
           <Link href="/" className="font-display text-[1.9rem] font-semibold leading-none tracking-tight text-emerald-700 md:text-2xl">
             {brand}
