@@ -118,8 +118,8 @@ export default function SobrePage() {
                   Revisão usada para sustentar os impactos ambientais
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  O material da Revista Acadêmica Oswaldo Cruz reforça a relação entre lixo eletrônico, contaminação
-                  por componentes tóxicos e necessidade de logística reversa.
+                  O artigo da revista EntreAções reforça a relação entre lixo eletrônico, impactos ambientais,
+                  descarte adequado e educação ambiental.
                 </p>
                 <a
                   href={impactResource.url}
@@ -127,7 +127,7 @@ export default function SobrePage() {
                   rel="noopener noreferrer"
                   className="mt-5 inline-flex text-sm font-semibold text-emerald-700"
                 >
-                  Abrir artigo da Revista Acadêmica Oswaldo Cruz
+                  Abrir artigo da revista EntreAções
                 </a>
               </article>
 

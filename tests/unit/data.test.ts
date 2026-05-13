@@ -8,7 +8,7 @@ import siteConfig from "@/data/site.config.json";
 
 describe("data helpers", () => {
   it("retrieves a known resource by id", () => {
-    expect(getResourceById("oswaldo-cruz").url).toContain("oswaldocruz.br");
+    expect(getResourceById("oswaldo-cruz").url).toContain("periodicos.ufca.edu.br");
   });
 
   it("throws for unknown resource ids", () => {

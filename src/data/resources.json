@@ -37,26 +37,26 @@
       "id": "oswaldo-cruz",
       "kind": "article",
       "cta": "Ler artigo",
-      "url": "https://www.oswaldocruz.br/revista_academica/content/pdf/Edicao27_Inae_Castro.pdf",
+      "url": "https://periodicos.ufca.edu.br/ojs/index.php/entreacoes/article/view/1211/838",
       "media": {
         "src": "assets/resource-oswaldo.svg",
-        "alt": "Capa ilustrada do artigo da Revista Acadêmica Oswaldo Cruz sobre lixo eletrônico.",
+        "alt": "Capa ilustrada de artigo acadêmico sobre impactos, descarte e educação ambiental no lixo eletrônico.",
         "width": 800,
         "height": 560,
         "label": "PDF acadêmico"
       },
       "home": {
         "badge": "Artigo acadêmico",
-        "title": "Revista Acadêmica Oswaldo Cruz",
-        "kicker": "Impactos ambientais, componentes tóxicos e necessidade de logística reversa.",
-        "description": "Material usado para dar mais peso científico à explicação sobre contaminação, baixa destinação correta e responsabilidade compartilhada.",
+        "title": "EntreAções: diálogos em extensão",
+        "kicker": "Impactos, descarte e educação ambiental aplicados ao lixo eletrônico.",
+        "description": "Material usado para dar mais peso científico à explicação sobre contaminação, descarte correto e conscientização ambiental.",
         "featured": true
       },
       "sources": {
         "badge": "Artigo central",
-        "title": "O descarte do lixo eletrônico e seus impactos",
-        "kicker": "Revista Acadêmica Oswaldo Cruz",
-        "description": "Foi usado para aprofundar a parte científica do site, principalmente nos impactos ambientais, na presença de metais e substâncias tóxicas e na importância da logística reversa.",
+        "title": "Lixo eletrônico: impactos, descarte e educação ambiental",
+        "kicker": "EntreAções: diálogos em extensão",
+        "description": "Foi usado para aprofundar a parte científica do site, principalmente nos impactos ambientais, no descarte adequado e na importância da educação ambiental.",
         "featured": true
       }
     },
