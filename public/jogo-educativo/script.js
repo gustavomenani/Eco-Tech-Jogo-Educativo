@@ -1745,6 +1745,7 @@ function completeLevelSave(levelNumber, points) {
 
 function renderPhaseCards() {
   if (!phaseCardsEl) return;
+  document.body.classList.toggle("is-playing", running);
   if (phaseSelectHintEl) {
     phaseSelectHintEl.textContent = running ? "Conclua ou reinicie a fase atual" : "Escolha uma área liberada";
   }
@@ -2561,6 +2562,44 @@ function syncMoveButtons() {
     button.classList.toggle("active", heldDirections.has(button.dataset.move));
   });
 }
+
+function renderGameToText() {
+  return JSON.stringify({
+    coordinateSystem: "Canvas 960x640, origin at top-left, x increases right, y increases down.",
+    mode: running ? (paused ? "paused" : "playing") : "menu",
+    level,
+    score,
+    timeLeft: Math.max(0, timeLeft),
+    progress: `${delivered}/${targetCount}`,
+    carried: carried ? { name: carried.name, type: carried.type } : null,
+    player: player ? { x: Math.round(player.x), y: Math.round(player.y), w: player.w, h: player.h } : null,
+    items: (items || []).slice(0, 8).map((item) => ({
+      name: item.name,
+      type: item.type,
+      x: Math.round(item.x),
+      y: Math.round(item.y)
+    })),
+    hazards: (hazards || []).map((hazard) => ({
+      x: Math.round(hazard.x),
+      y: Math.round(hazard.y),
+      w: hazard.w,
+      h: hazard.h
+    }))
+  });
+}
+
+window.render_game_to_text = renderGameToText;
+window.advanceTime = (ms = 1000 / 60) => {
+  const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+  for (let step = 0; step < steps; step += 1) {
+    if (!paused) {
+      movePlayer(1 / 60);
+      updateWorld(1 / 60);
+    }
+  }
+  draw();
+  updateHud();
+};
 
 window.addEventListener("keydown", (event) => {
   const key = normalizeKey(event.key);

@@ -34,7 +34,8 @@ export default function JogoPage() {
           <iframe
             title="Jogo educativo Missão Reciclar"
             src="/jogo-educativo/index.html"
-            className="h-[1120px] w-full rounded-[8px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] md:h-[1040px]"
+            className="h-[calc(100svh-9.5rem)] min-h-[760px] w-full rounded-[8px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] md:h-[1040px]"
+            allowFullScreen
           />
         </div>
       </section>

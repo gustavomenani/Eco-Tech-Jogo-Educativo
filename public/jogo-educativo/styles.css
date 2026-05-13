@@ -501,24 +501,80 @@ canvas {
 }
 
 @media (max-width: 720px) {
+  body {
+    min-height: 100svh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(circle at 18% 14%, rgba(255, 230, 150, 0.32), transparent 18rem),
+      radial-gradient(circle at 86% 0%, rgba(135, 206, 235, 0.32), transparent 18rem),
+      linear-gradient(135deg, #e0f2fe 0%, #f8fffb 100%);
+  }
+
+  button {
+    border-radius: 12px;
+  }
+
+  .game {
+    width: 100%;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+
   .hud,
   .controls {
-    align-items: stretch;
-    flex-direction: column;
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .hud {
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    margin-bottom: 0;
   }
 
   .brand-block {
+    flex: 0 0 104px;
     min-width: 0;
+  }
+
+  .hud p {
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+  }
+
+  .hud h1 {
+    font-size: 1.3rem;
+    line-height: 0.95;
   }
 
   .stats {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
     justify-content: stretch;
   }
 
   .stat-card {
+    min-height: 48px;
     min-width: 0;
+    padding: 6px 5px;
+  }
+
+  .stat-card::before {
+    border-left-width: 3px;
+  }
+
+  .stat-card span {
+    font-size: 0.66rem;
+  }
+
+  .stats strong {
+    font-size: 1.18rem;
   }
 
   .stats span {
@@ -526,45 +582,242 @@ canvas {
     min-width: 0;
   }
 
+  .stage-wrap {
+    flex: 1 1 auto;
+    min-height: 360px;
+    border-width: 3px;
+    border-radius: 14px;
+  }
+
+  canvas {
+    width: 100%;
+    height: clamp(350px, 50svh, 500px);
+    aspect-ratio: auto;
+  }
+
   .overlay {
-    inset: auto 12px 12px;
+    inset: auto 10px 10px;
     width: auto;
+    max-height: calc(100% - 20px);
+    overflow: auto;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .overlay h2 {
+    font-size: clamp(1.75rem, 9vw, 2.7rem);
+  }
+
+  .overlay p {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
+  .status-panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin-bottom: 0;
+  }
+
+  .status-panel div {
+    min-height: 45px;
+    padding: 7px 6px;
+    border-radius: 12px;
+  }
+
+  .status-panel span {
+    font-size: 0.56rem;
+  }
+
+  .status-panel span img {
+    display: none;
+  }
+
+  .status-panel strong {
+    font-size: 0.76rem;
+    line-height: 1.15;
+  }
+
+  .lesson-panel {
+    min-height: 38px;
+    gap: 8px;
+    margin-bottom: 0;
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .lesson-panel span {
+    display: none;
+  }
+
+  .lesson-panel strong {
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
+
+  body.is-playing .lesson-panel {
+    display: none;
+  }
+
+  .phase-select {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 0;
+  }
+
+  .phase-select > div:first-child {
+    min-height: 0;
+    padding: 0 2px;
+    border: 0;
+    background: transparent;
+  }
+
+  .phase-select > div:first-child span {
+    display: none;
+  }
+
+  .phase-select > div:first-child strong {
+    display: block;
+    color: #315743;
+    font-size: 0.8rem;
+  }
+
+  .phase-cards {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .phase-cards::-webkit-scrollbar {
+    display: none;
+  }
+
+  .phase-card {
+    flex: 0 0 136px;
+    min-height: 58px;
+    padding: 8px 9px;
+    border-radius: 12px;
+    scroll-snap-align: start;
+  }
+
+  body.is-playing .phase-card:not(.active) {
+    display: none;
+  }
+
+  body.is-playing .phase-card.active {
+    flex-basis: 100%;
+    min-height: 44px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  body.is-playing .phase-card.active span,
+  body.is-playing .phase-card.active strong,
+  body.is-playing .phase-card.active small {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .phase-card strong {
+    font-size: 0.82rem;
+  }
+
+  .phase-card small {
+    font-size: 0.72rem;
+  }
+
+  .controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -14px 34px rgba(16, 51, 37, 0.14);
+  }
+
+  .controls > div:first-child {
+    display: none;
+  }
+
+  .quick-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    gap: 6px !important;
+  }
+
+  .utility-btn,
+  #restartBtn {
+    min-height: 42px;
+    padding: 0 9px;
+    font-size: 0.78rem;
+  }
+
+  .dpad {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, 64px);
+    grid-template-rows: repeat(2, 54px);
+    gap: 7px;
+    justify-self: center;
+  }
+
+  .move-btn {
+    min-height: 54px;
+    width: 64px;
+    border-radius: 16px;
+    font-size: 1.2rem;
+  }
+
+  #restartBtn {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    width: 86px;
+    min-height: 54px;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  .game {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .brand-block {
+    flex-basis: 92px;
+  }
+
+  .hud h1 {
+    font-size: 1.14rem;
   }
 
   .status-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .lesson-panel,
-  .phase-select,
-  .quick-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .phase-select {
-    grid-template-columns: 1fr;
-  }
-
-  .phase-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .status-panel div {
-    min-height: 46px;
-  }
-
-  .status-panel strong {
-    font-size: 0.82rem;
+  canvas {
+    height: clamp(320px, 48svh, 480px);
   }
 
   .dpad {
-    grid-template-columns: repeat(3, 56px);
-    grid-template-rows: repeat(3, 48px);
+    grid-template-columns: repeat(3, 58px);
+    grid-template-rows: repeat(2, 50px);
   }
 
   .move-btn {
-    min-height: 48px;
-    width: 56px;
+    width: 58px;
+    min-height: 50px;
   }
 }
