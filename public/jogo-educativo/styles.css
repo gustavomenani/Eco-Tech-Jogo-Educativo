@@ -454,50 +454,56 @@ canvas {
   box-shadow: none;
 }
 
-.dpad {
-  display: grid;
-  grid-template-columns: repeat(3, 46px);
-  grid-template-rows: repeat(3, 40px);
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-}
-
-.move-btn {
-  min-height: 40px;
-  width: 46px;
-  padding: 0;
-  background: linear-gradient(180deg, #1e5a45 0%, #102f27 100%);
-  color: #ffffff;
-  box-shadow: 0 8px 16px rgba(16, 51, 37, 0.24);
+.joystick {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.34) 0 21%, transparent 22%),
+    linear-gradient(145deg, rgba(21, 114, 79, 0.9), rgba(13, 63, 49, 0.94));
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.28),
+    0 18px 38px rgba(13, 63, 49, 0.28);
   user-select: none;
   touch-action: none;
 }
 
-.move-btn:active,
-.move-btn.active {
-  transform: translateY(1px) scale(0.97);
-  box-shadow: 0 4px 10px rgba(16, 32, 51, 0.22);
+.joystick-ring {
+  position: absolute;
+  inset: 16px;
+  border-radius: inherit;
+  border: 2px dashed rgba(255, 255, 255, 0.38);
+  pointer-events: none;
 }
 
-.move-btn.up {
-  grid-column: 2;
-  grid-row: 1;
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.16) 24%, transparent 25%),
+    linear-gradient(180deg, #f8fbff 0%, #dce8f3 100%);
+  box-shadow:
+    0 12px 24px rgba(6, 28, 23, 0.28),
+    inset 0 -3px 8px rgba(15, 23, 42, 0.14);
+  transform: translate(-50%, -50%);
+  transition: transform 80ms ease;
+  pointer-events: none;
 }
 
-.move-btn.left {
-  grid-column: 1;
-  grid-row: 2;
+.joystick.active .joystick-knob {
+  transition: none;
 }
 
-.move-btn.down {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.move-btn.right {
-  grid-column: 3;
-  grid-row: 2;
+.joystick.active {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.38),
+    0 18px 42px rgba(13, 63, 49, 0.36),
+    0 0 0 8px rgba(33, 153, 111, 0.12);
 }
 
 @media (max-width: 720px) {
@@ -520,7 +526,7 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 8px;
+    padding: 8px 8px 164px;
   }
 
   .hud,
@@ -733,16 +739,23 @@ canvas {
   }
 
   .controls {
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
+    position: fixed;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 20;
     display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: end;
     gap: 8px;
+    height: 142px;
     margin-top: 0;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
-    box-shadow: 0 -14px 34px rgba(16, 51, 37, 0.14);
+    border: 0;
+    background: transparent;
+    padding: 0 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: none;
+    pointer-events: none;
   }
 
   .controls > div:first-child {
@@ -752,40 +765,45 @@ canvas {
   .quick-actions {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-column: 1 / -1;
-    gap: 6px !important;
+    grid-column: 2 / 4;
+    grid-row: 1;
+    justify-self: end;
+    width: min(248px, calc(100vw - 150px));
+    gap: 5px !important;
+    pointer-events: auto;
   }
 
   .utility-btn,
   #restartBtn {
-    min-height: 42px;
-    padding: 0 9px;
-    font-size: 0.78rem;
+    min-height: 36px;
+    padding: 0 8px;
+    border-radius: 14px;
+    background: rgba(248, 251, 255, 0.9);
+    font-size: 0.72rem;
+    box-shadow: 0 10px 24px rgba(16, 32, 51, 0.16);
+    backdrop-filter: blur(10px);
   }
 
-  .dpad {
+  .joystick {
     grid-column: 1;
-    grid-row: 2;
-    grid-template-columns: repeat(3, 64px);
-    grid-template-rows: repeat(2, 54px);
-    gap: 7px;
-    justify-self: center;
-  }
-
-  .move-btn {
-    min-height: 54px;
-    width: 64px;
-    border-radius: 16px;
-    font-size: 1.2rem;
+    grid-row: 1 / 3;
+    justify-self: start;
+    align-self: end;
+    width: 112px;
+    height: 112px;
+    margin-left: 2px;
+    pointer-events: auto;
   }
 
   #restartBtn {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 2;
     align-self: center;
-    width: 86px;
-    min-height: 54px;
+    justify-self: end;
+    width: 82px;
+    min-height: 48px;
     border-radius: 16px;
+    pointer-events: auto;
   }
 }
 
@@ -811,13 +829,17 @@ canvas {
     height: clamp(320px, 48svh, 480px);
   }
 
-  .dpad {
-    grid-template-columns: repeat(3, 58px);
-    grid-template-rows: repeat(2, 50px);
+  .joystick {
+    width: 104px;
+    height: 104px;
   }
 
-  .move-btn {
-    width: 58px;
-    min-height: 50px;
+  .quick-actions {
+    width: min(220px, calc(100vw - 130px));
+  }
+
+  .utility-btn {
+    padding: 0 6px;
+    font-size: 0.68rem;
   }
 }

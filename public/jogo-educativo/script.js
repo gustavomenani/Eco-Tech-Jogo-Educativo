@@ -7,6 +7,8 @@ const overlay = document.querySelector("#overlay");
 const startBtn = document.querySelector("#startBtn");
 const restartBtn = document.querySelector("#restartBtn");
 const moveButtons = document.querySelectorAll(".move-btn");
+const moveJoystick = document.querySelector("#moveJoystick");
+const moveJoystickKnob = document.querySelector("#moveJoystickKnob");
 const missionEl = document.querySelector("#mission");
 const progressTextEl = document.querySelector("#progressText");
 const carryTextEl = document.querySelector("#carryText");
@@ -33,6 +35,7 @@ const MAX_DELIVERY_BURSTS = 4;
 
 const keys = new Set();
 const heldDirections = new Set();
+const joystickInput = { active: false, x: 0, y: 0, pointerId: null };
 const tintedIconCache = new Map();
 const mapImage = new Image();
 mapImage.src = "assets/park-background.png";
@@ -460,6 +463,7 @@ function newGame() {
   keys.clear();
   heldDirections.clear();
   syncMoveButtons();
+  resetJoystick();
   player = makePlayer();
   score = 0;
   level = selectedLevel;
@@ -540,6 +544,7 @@ function endGame(title, text) {
   keys.clear();
   heldDirections.clear();
   syncMoveButtons();
+  resetJoystick();
   clearInterval(timerId);
   overlay.innerHTML = `
     <h2>${title}</h2>
@@ -566,6 +571,7 @@ function completePhase() {
   keys.clear();
   heldDirections.clear();
   syncMoveButtons();
+  resetJoystick();
 
   const finalPhase = finishedLevel >= phaseConfigs.length;
   overlay.innerHTML = `
@@ -601,6 +607,7 @@ function togglePause() {
   keys.clear();
   heldDirections.clear();
   syncMoveButtons();
+  resetJoystick();
   pauseBtn.textContent = paused ? "Continuar partida" : "Pausar";
   if (paused) showPauseOverlay();
   else overlay.classList.add("hidden");
@@ -615,14 +622,19 @@ function movePlayer(dt) {
   if (keys.has("arrowright") || keys.has("d") || heldDirections.has("right")) dx += 1;
   if (keys.has("arrowup") || keys.has("w") || heldDirections.has("up")) dy -= 1;
   if (keys.has("arrowdown") || keys.has("s") || heldDirections.has("down")) dy += 1;
+  if (joystickInput.active) {
+    dx += joystickInput.x;
+    dy += joystickInput.y;
+  }
 
   let targetVx = 0;
   let targetVy = 0;
   const wasWalking = player.walking;
   if (dx !== 0 || dy !== 0) {
     const length = Math.hypot(dx, dy);
-    targetVx = (dx / length) * player.speed;
-    targetVy = (dy / length) * player.speed;
+    const inputStrength = joystickInput.active ? Math.min(1, length) : 1;
+    targetVx = (dx / length) * player.speed * inputStrength;
+    targetVy = (dy / length) * player.speed * inputStrength;
     if (Math.abs(dx) > Math.abs(dy)) player.facing = dx > 0 ? "right" : "left";
     else player.facing = dy > 0 ? "down" : "up";
     player.targetFacingAngle = directionToAngle(dx / length, dy / length);
@@ -2563,6 +2575,39 @@ function syncMoveButtons() {
   });
 }
 
+function resetJoystick() {
+  joystickInput.active = false;
+  joystickInput.x = 0;
+  joystickInput.y = 0;
+  joystickInput.pointerId = null;
+  if (moveJoystickKnob) {
+    moveJoystickKnob.style.transform = "translate(-50%, -50%)";
+  }
+  moveJoystick?.classList.remove("active");
+}
+
+function updateJoystickFromPointer(event) {
+  if (!moveJoystick || !moveJoystickKnob) return;
+
+  const rect = moveJoystick.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const maxDistance = rect.width * 0.34;
+  const rawX = event.clientX - centerX;
+  const rawY = event.clientY - centerY;
+  const distance = Math.hypot(rawX, rawY);
+  const clampedDistance = Math.min(maxDistance, distance);
+  const angle = Math.atan2(rawY, rawX);
+  const knobX = distance === 0 ? 0 : Math.cos(angle) * clampedDistance;
+  const knobY = distance === 0 ? 0 : Math.sin(angle) * clampedDistance;
+
+  joystickInput.active = distance > 8;
+  joystickInput.x = distance === 0 ? 0 : knobX / maxDistance;
+  joystickInput.y = distance === 0 ? 0 : knobY / maxDistance;
+  moveJoystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+  moveJoystick.classList.toggle("active", joystickInput.active);
+}
+
 function renderGameToText() {
   return JSON.stringify({
     coordinateSystem: "Canvas 960x640, origin at top-left, x increases right, y increases down.",
@@ -2622,6 +2667,7 @@ window.addEventListener("blur", () => {
   keys.clear();
   heldDirections.clear();
   syncMoveButtons();
+  resetJoystick();
 });
 
 moveButtons.forEach((button) => {
@@ -2649,6 +2695,27 @@ moveButtons.forEach((button) => {
     syncMoveButtons();
   });
 });
+
+moveJoystick?.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  moveJoystick.setPointerCapture(event.pointerId);
+  joystickInput.pointerId = event.pointerId;
+  updateJoystickFromPointer(event);
+});
+
+moveJoystick?.addEventListener("pointermove", (event) => {
+  if (joystickInput.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  updateJoystickFromPointer(event);
+});
+
+moveJoystick?.addEventListener("pointerup", (event) => {
+  if (joystickInput.pointerId !== event.pointerId) return;
+  resetJoystick();
+});
+
+moveJoystick?.addEventListener("pointercancel", resetJoystick);
+moveJoystick?.addEventListener("lostpointercapture", resetJoystick);
 
 startBtn.addEventListener("click", newGame);
 restartBtn.addEventListener("click", newGame);

@@ -67,7 +67,7 @@
       <footer class="controls">
         <div>
           <strong id="lbl_controls">Controles</strong>
-          <span id="lbl_controls_desc">WASD, setas ou botões para mover</span>
+          <span id="lbl_controls_desc">WASD, setas ou arraste o controle para mover</span>
         </div>
         <div class="quick-actions">
           <button id="pauseBtn" class="utility-btn" type="button">Pausar</button>
@@ -75,11 +75,9 @@
           <button id="perfBtn" class="utility-btn" type="button">FPS</button>
           <span id="fpsMeter" class="fps-meter" hidden>60 FPS</span>
         </div>
-        <div class="dpad" aria-label="Controles de movimento na tela">
-          <button class="move-btn up" data-move="up" type="button" aria-label="Mover para cima">&uarr;</button>
-          <button class="move-btn left" data-move="left" type="button" aria-label="Mover para esquerda">&larr;</button>
-          <button class="move-btn down" data-move="down" type="button" aria-label="Mover para baixo">&darr;</button>
-          <button class="move-btn right" data-move="right" type="button" aria-label="Mover para direita">&rarr;</button>
+        <div class="joystick" id="moveJoystick" role="application" aria-label="Arraste para mover o personagem">
+          <div class="joystick-ring" aria-hidden="true"></div>
+          <div class="joystick-knob" id="moveJoystickKnob" aria-hidden="true"></div>
         </div>
         <button id="restartBtn" type="button">Reiniciar</button>
       </footer>
