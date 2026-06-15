@@ -44,10 +44,11 @@ const recycleIcon = new Image();
 recycleIcon.src = "assets/recycle.svg";
 recycleIcon.addEventListener("load", draw);
 const bins = [
-  { type: "papel", label: "PAPEL", color: "#2f6fed", x: 54, y: 48 },
-  { type: "plastico", label: "PLASTICO", color: "#d94d42", x: 248, y: 48 },
-  { type: "metal", label: "METAL", color: "#f4be32", x: 458, y: 48 },
-  { type: "vidro", label: "VIDRO", color: "#21996f", x: 660, y: 48 }
+  { type: "papel", label: "PAPEL", color: "#2f6fed", x: 35, y: 48 },
+  { type: "plastico", label: "PLASTICO", color: "#d94d42", x: 220, y: 48 },
+  { type: "metal", label: "METAL", color: "#f4be32", x: 405, y: 48 },
+  { type: "vidro", label: "VIDRO", color: "#21996f", x: 590, y: 48 },
+  { type: "eletronico", label: "ELETRÔNICO", color: "#78716c", x: 775, y: 48 }
 ];
 
 const itemTypes = [
@@ -58,7 +59,11 @@ const itemTypes = [
   { type: "metal", name: "lata", color: "#ffe08a", icon: "can" },
   { type: "metal", name: "tampa", color: "#f7cb54", icon: "cap" },
   { type: "vidro", name: "pote", color: "#8ee4c3", icon: "jar" },
-  { type: "vidro", name: "copo", color: "#afeed8", icon: "glass" }
+  { type: "vidro", name: "copo", color: "#afeed8", icon: "glass" },
+  { type: "eletronico", name: "celular", color: "#cbd5e1", icon: "phone" },
+  { type: "eletronico", name: "bateria", color: "#fca5a5", icon: "battery" },
+  { type: "eletronico", name: "teclado", color: "#94a3b8", icon: "keyboard" },
+  { type: "eletronico", name: "placa", color: "#86efac", icon: "board" }
 ];
 
 const SAVE_KEY = "missao-reciclar-save-v1";
@@ -69,9 +74,9 @@ const phaseConfigs = [
   { name: "Lago Sustentável", target: 12, hazards: 4, time: 72, mission: "Proteja a água e os animais", tint: "rgba(115, 211, 255, 0.16)", accent: "#2f6fed", learnings: ["Plástico no ambiente prejudica rios e lagos.", "Vidro pode ser reciclado muitas vezes."] },
   { name: "Praia Limpa", target: 13, hazards: 5, time: 76, mission: "Retire resíduos antes que cheguem ao mar", tint: "rgba(56, 189, 248, 0.18)", accent: "#38bdf8", learnings: ["Plástico no mar ameaça peixes e aves.", "Praias limpas protegem turismo e biodiversidade."] },
   { name: "Floresta Viva", target: 14, hazards: 5, time: 80, mission: "Proteja a trilha ecológica", tint: "rgba(34, 197, 94, 0.16)", accent: "#16a34a", learnings: ["Resíduos na mata podem causar incêndios.", "Vidro abandonado também fere animais."] },
-  { name: "Bairro Industrial", target: 15, hazards: 6, time: 84, mission: "Organize a coleta perto das fábricas", tint: "rgba(148, 163, 184, 0.2)", accent: "#64748b", learnings: ["Indústrias precisam separar resíduos corretamente.", "Metal reciclado reduz mineração e gasto energético."] },
-  { name: "Cooperativa Verde", target: 16, hazards: 6, time: 88, mission: "Ajude a cooperativa a fechar a triagem", tint: "rgba(250, 204, 21, 0.13)", accent: "#eab308", learnings: ["Cooperativas geram renda com reciclagem.", "Material limpo vale mais e é reaproveitado melhor."] },
-  { name: "Eco Desafio Final", target: 18, hazards: 7, time: 94, mission: "Complete a reciclagem da cidade", tint: "rgba(255, 255, 255, 0.12)", accent: "#21996f", learnings: ["Reciclar reduz resíduos enviados a aterros.", "A separação correta melhora toda a cadeia."] }
+  { name: "Bairro Industrial", target: 15, hazards: 6, time: 84, mission: "Organize a coleta perto das fábricas", tint: "rgba(148, 163, 184, 0.2)", accent: "#64748b", learnings: ["Indústrias precisam separar resíduos corretamente.", "Lixo eletrônico possui metais pesados tóxicos."] },
+  { name: "Cooperativa Verde", target: 16, hazards: 6, time: 88, mission: "Ajude a cooperativa a fechar a triagem", tint: "rgba(250, 204, 21, 0.13)", accent: "#eab308", learnings: ["Cooperativas geram renda com reciclagem.", "Celulares antigos contêm ouro e cobre valiosos."] },
+  { name: "Eco Desafio Final", target: 18, hazards: 7, time: 94, mission: "Complete a reciclagem da cidade", tint: "rgba(255, 255, 255, 0.12)", accent: "#21996f", learnings: ["Reciclar reduz resíduos enviados a aterros.", "O lixo eletrônico exige descarte especial (Ecopontos)."] }
 ];
 
 const phaseMapThemes = [
@@ -89,7 +94,8 @@ const educationTips = {
   papel: "Papel e papelão vão na lixeira azul. Eles podem voltar como cadernos, caixas e embalagens.",
   plastico: "Plástico vai na lixeira vermelha. Garrafas e sacolas precisam estar limpas e secas.",
   metal: "Metal vai na lixeira amarela. Latas recicladas economizam muita energia.",
-  vidro: "Vidro vai na lixeira verde. Ele pode ser reciclado muitas vezes sem perder qualidade."
+  vidro: "Vidro vai na lixeira verde. Ele pode ser reciclado muitas vezes sem perder qualidade.",
+  eletronico: "Lixo eletrônico vai na lixeira cinza. Pilhas, baterias e celulares contêm compostos perigosos."
 };
 
 const scenery = [
@@ -114,6 +120,7 @@ let motionTrails = [];
 let player;
 let items;
 let hazards;
+let powerups = [];
 let score;
 let level;
 let timeLeft;
@@ -137,6 +144,8 @@ let stepDustTimer = 0;
 let ambientTime = 0;
 let audioCtx;
 let audioMuted = false;
+let bgmIntervalId = null;
+let bgmStep = 0;
 let showPerf = false;
 let fps = 60;
 let fpsFrames = 0;
@@ -375,13 +384,17 @@ function addMotionTrail() {
   if (!player || !player.walking) return;
   const speed = Math.hypot(player.vx, player.vy);
   if (speed < 70) return;
+  let trailColor = carried ? carried.color : "#b7f7d0";
+  if (player.powerups.speed > 0) {
+    trailColor = "#4ade80";
+  }
   motionTrails.push({
     x: player.x,
     y: player.y,
     facingAngle: player.facingAngle || 0,
     life: 0.24,
     maxLife: 0.24,
-    color: carried ? carried.color : "#b7f7d0"
+    color: trailColor
   });
   if (motionTrails.length > MAX_MOTION_TRAILS) motionTrails.shift();
 }
@@ -452,7 +465,12 @@ function makePlayer() {
     visualTurn: 0,
     turnEnergy: 0,
     walking: false,
-    walkCycle: 0
+    walkCycle: 0,
+    powerups: {
+      speed: 0,
+      shield: 0,
+      magnet: 0
+    }
   };
 }
 
@@ -486,16 +504,18 @@ function newGame() {
   particles = [];
   items = makeItems(targetCount);
   hazards = makeHazards(phase.hazards);
+  powerups = makePowerups(Math.floor(phase.hazards / 2) + 1);
   running = true;
   lastTime = performance.now();
   overlay.classList.add("hidden");
   pauseBtn.textContent = "Pausar";
-  setLesson("Separe cada resíduo pela cor certa. Azul: papel, vermelho: plástico, amarelo: metal, verde: vidro.");
+  setLesson("Separe resíduos pela cor certa. Azul: papel, vermelho: plástico, amarelo: metal, verde: vidro, cinza: eletrônico.");
   updateHud();
   renderPhaseCards();
   timerId = setInterval(tickClock, 1000);
   animationId = requestAnimationFrame(loop);
   playSound("level");
+  startBgm();
 }
 
 function nextLevel() {
@@ -515,9 +535,11 @@ function nextLevel() {
   addFloatingText(`Fase ${level}!`, player.x, player.y - 20, "#fff7a8");
   items = makeItems(targetCount);
   hazards = makeHazards(phase.hazards);
+  powerups = makePowerups(Math.floor(phase.hazards / 2) + 1);
   setLesson(`${phase.name}: ${phase.mission}.`);
   updateHud();
   playSound("level");
+  startBgm();
 }
 
 function tickClock() {
@@ -546,6 +568,7 @@ function endGame(title, text) {
   syncMoveButtons();
   resetJoystick();
   clearInterval(timerId);
+  stopBgm();
   overlay.innerHTML = `
     <h2>${title}</h2>
     <p>${text}<br>Pontuação final: <strong>${score}</strong></p>
@@ -562,9 +585,6 @@ function phaseLearningHtml(phase) {
 }
 
 function completePhase() {
-  const finishedLevel = level;
-  const phase = currentPhase();
-  completeLevelSave(finishedLevel, score);
   running = false;
   paused = false;
   clearInterval(timerId);
@@ -572,21 +592,27 @@ function completePhase() {
   heldDirections.clear();
   syncMoveButtons();
   resetJoystick();
+  stopBgm();
 
-  const finalPhase = finishedLevel >= phaseConfigs.length;
-  overlay.innerHTML = `
-    <h2>${finalPhase ? "Vitória!" : "Fase concluída"}</h2>
-    <p>${phase.name}<br>Pontuação atual: <strong>${score}</strong></p>
-    ${phaseLearningHtml(phase)}
-    <div class="overlay-actions">
-      ${finalPhase ? "" : `<button data-action="next-level" type="button">Próxima fase</button>`}
-      <button data-action="new-game" type="button">${finalPhase ? "Jogar de novo" : "Rejogar"}</button>
-    </div>
-  `;
-  overlay.classList.remove("hidden");
-  pauseBtn.textContent = "Pausar";
-  setLesson(finalPhase ? "Campanha concluída. Seu progresso foi salvo." : "Fase concluída. Veja os aprendizados e avance quando quiser.");
-  playSound(finalPhase ? "level" : "success");
+  startQuiz(() => {
+    const finishedLevel = level;
+    const phase = currentPhase();
+    completeLevelSave(finishedLevel, score);
+    const finalPhase = finishedLevel >= phaseConfigs.length;
+    overlay.innerHTML = `
+      <h2>${finalPhase ? "Vitória!" : "Fase concluída"}</h2>
+      <p>${phase.name}<br>Pontuação atual: <strong>${score}</strong></p>
+      ${phaseLearningHtml(phase)}
+      <div class="overlay-actions">
+        ${finalPhase ? "" : `<button data-action="next-level" type="button">Próxima fase</button>`}
+        <button data-action="new-game" type="button">${finalPhase ? "Jogar de novo" : "Rejogar"}</button>
+      </div>
+    `;
+    overlay.classList.remove("hidden");
+    pauseBtn.textContent = "Pausar";
+    setLesson(finalPhase ? "Campanha concluída. Seu progresso foi salvo." : "Fase concluída. Veja os aprendizados e avance quando quiser.");
+    playSound(finalPhase ? "level" : "success");
+  });
 }
 
 function showPauseOverlay() {
@@ -633,8 +659,12 @@ function movePlayer(dt) {
   if (dx !== 0 || dy !== 0) {
     const length = Math.hypot(dx, dy);
     const inputStrength = joystickInput.active ? Math.min(1, length) : 1;
-    targetVx = (dx / length) * player.speed * inputStrength;
-    targetVy = (dy / length) * player.speed * inputStrength;
+    let currentMaxSpeed = player.speed;
+    if (player.powerups.speed > 0) {
+      currentMaxSpeed = 420;
+    }
+    targetVx = (dx / length) * currentMaxSpeed * inputStrength;
+    targetVy = (dy / length) * currentMaxSpeed * inputStrength;
     if (Math.abs(dx) > Math.abs(dy)) player.facing = dx > 0 ? "right" : "left";
     else player.facing = dy > 0 ? "down" : "up";
     player.targetFacingAngle = directionToAngle(dx / length, dy / length);
@@ -700,6 +730,9 @@ function updateWorld(dt) {
   slowMoTime = Math.max(0, slowMoTime - dt);
   shakeTime = Math.max(0, shakeTime - dt);
 
+  if (player.powerups.speed > 0) player.powerups.speed = Math.max(0, player.powerups.speed - dt);
+  if (player.powerups.magnet > 0) player.powerups.magnet = Math.max(0, player.powerups.magnet - dt);
+
   motionTrails = motionTrails
     .map((trail) => ({
       ...trail,
@@ -739,6 +772,29 @@ function updateWorld(dt) {
     }))
     .filter((text) => text.life > 0);
 
+  if (player.powerups.magnet > 0) {
+    const magnetRadius = 220;
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
+    items.forEach((item) => {
+      const ix = item.x + item.w / 2;
+      const iy = item.y + item.h / 2;
+      const dist = Math.hypot(px - ix, py - iy);
+      if (dist < magnetRadius && dist > 15) {
+        const speed = 190 * (1 - dist / magnetRadius) + 80;
+        const angle = Math.atan2(py - iy, px - ix);
+        item.x += Math.cos(angle) * speed * dt;
+        item.y += Math.sin(angle) * speed * dt;
+      }
+    });
+  }
+
+  const foundPower = powerups.find((power) => rectsTouch(player, power));
+  if (foundPower) {
+    powerups = powerups.filter((p) => p !== foundPower);
+    applyPowerup(foundPower);
+  }
+
   hazards.forEach((hazard) => {
     hazard.x += hazard.vx * dt;
     if (hazard.x < 20 || hazard.x + hazard.w > canvas.width - 20) hazard.vx *= -1;
@@ -750,19 +806,31 @@ function updateWorld(dt) {
       hazard.sparkTimer = 0.14 + Math.random() * 0.16;
     }
     if (rectsTouch(player, hazard) && player.invincible <= 0) {
-      score = Math.max(0, score - 35);
-      timeLeft = Math.max(0, timeLeft - 4);
-      combo = 1;
-      player.invincible = 1.2;
-      shakeTime = 0.44;
-      shakeStrength = 12;
-      screenFlash = 1;
-      slowMoTime = 0.14;
-      addExplosion(hazard.x + hazard.w / 2, hazard.y + hazard.h / 2);
-      addFloatingText("-4s", player.x, player.y - 10, "#ffb4ad");
-      setLesson("Atenção: evite as bombas. Elas representam riscos e atrasam a limpeza da cidade.");
-      playSound("boom");
-      updateHud();
+      if (player.powerups.shield > 0) {
+        player.powerups.shield -= 1;
+        player.invincible = 0.8;
+        shakeTime = 0.3;
+        shakeStrength = 6;
+        screenFlash = 0.4;
+        addParticles(player.x + player.w / 2, player.y + player.h / 2, "#3b82f6", 24, 1.5);
+        addFloatingText("Escudo Absorveu!", player.x - 20, player.y - 18, "#60a5fa");
+        playSound("success");
+        setLesson("O Escudo Ecológico absorveu o impacto da bomba! Continue limpando.");
+      } else {
+        score = Math.max(0, score - 35);
+        timeLeft = Math.max(0, timeLeft - 4);
+        combo = 1;
+        player.invincible = 1.2;
+        shakeTime = 0.44;
+        shakeStrength = 12;
+        screenFlash = 1;
+        slowMoTime = 0.14;
+        addExplosion(hazard.x + hazard.w / 2, hazard.y + hazard.h / 2);
+        addFloatingText("-4s", player.x, player.y - 10, "#ffb4ad");
+        setLesson("Atenção: evite as bombas. Elas representam riscos e atrasam a limpeza da cidade.");
+        playSound("boom");
+        updateHud();
+      }
     }
   });
 
@@ -1743,7 +1811,6 @@ function saveProgress() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
   } catch {
-    // Progress save is optional; the game should keep working if storage is blocked.
   }
 }
 
@@ -1784,9 +1851,13 @@ function setLesson(text) {
 
 function ensureAudio() {
   if (audioCtx || audioMuted) return;
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return;
-  audioCtx = new AudioContext();
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    audioCtx = new AudioContext();
+  } catch (e) {
+    console.warn("AudioContext creation failed:", e);
+  }
 }
 
 function playTone(frequency, duration = 0.08, type = "sine", volume = 0.06) {
@@ -1863,6 +1934,35 @@ function drawItemIcon(x, y, w, h, item) {
     ctx.moveTo(x + w * 0.5, y + h * 0.22);
     ctx.lineTo(x + w * 0.5, y + h * 0.86);
     ctx.stroke();
+  } else if (item.icon === "phone") {
+    fillGradientRoundedRect(x + w * 0.3, y + h * 0.12, w * 0.4, h * 0.76, 6, topColor, bottomColor);
+    fillRoundedRect(x + w * 0.34, y + h * 0.18, w * 0.32, h * 0.5, 2, "#1e293b");
+    drawSoftEllipse(x + w / 2, y + h * 0.78, 3, 3, "#ffffff");
+  } else if (item.icon === "battery") {
+    fillGradientRoundedRect(x + w * 0.32, y + h * 0.22, w * 0.36, h * 0.64, 4, topColor, bottomColor);
+    fillRoundedRect(x + w * 0.44, y + h * 0.14, w * 0.12, h * 0.08, 1, shade(item.color, -30));
+    fillRoundedRect(x + w * 0.32, y + h * 0.22, w * 0.36, h * 0.22, 1, "#ef4444");
+    fillRoundedRect(x + w * 0.32, y + h * 0.66, w * 0.36, h * 0.2, 1, "#10b981");
+  } else if (item.icon === "keyboard") {
+    fillGradientRoundedRect(x + w * 0.1, y + h * 0.28, w * 0.8, h * 0.44, 4, topColor, bottomColor);
+    ctx.fillStyle = shade(item.color, -25);
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 6; c++) {
+        ctx.fillRect(x + w * 0.16 + c * (w * 0.11), y + h * 0.34 + r * (h * 0.12), w * 0.08, h * 0.08);
+      }
+    }
+  } else if (item.icon === "board") {
+    fillGradientRoundedRect(x + w * 0.15, y + h * 0.18, w * 0.7, h * 0.64, 4, topColor, bottomColor);
+    fillRoundedRect(x + w * 0.32, y + h * 0.36, w * 0.26, h * 0.26, 2, "#1e293b");
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.2, y + h * 0.3);
+    ctx.lineTo(x + w * 0.32, y + h * 0.3);
+    ctx.lineTo(x + w * 0.32, y + h * 0.45);
+    ctx.moveTo(x + w * 0.7, y + h * 0.5);
+    ctx.lineTo(x + w * 0.58, y + h * 0.5);
+    ctx.stroke();
   } else {
     fillGradientRoundedRect(x + w * 0.14, y + h * 0.14, w * 0.72, h * 0.68, 5, topColor, bottomColor);
     ctx.strokeStyle = shade(item.color, -35);
@@ -1919,7 +2019,7 @@ function drawHazards() {
     ctx.globalAlpha = 0.16 + alarm * 0.14;
     ctx.strokeStyle = "#ef4444";
     ctx.lineWidth = 3;
-  for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       ctx.rotate(Math.PI / 2);
       ctx.beginPath();
       ctx.moveTo(42, 0);
@@ -2066,6 +2166,34 @@ function drawPlayer() {
     ctx.ellipse(centerX, player.y + player.h - 1, 32, 10, 0, ambientTime * 4, ambientTime * 4 + Math.PI * 1.35);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  if (player.powerups.shield > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.35 + Math.sin(ambientTime * 8) * 0.12;
+    ctx.strokeStyle = "#3b82f6";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(centerX, py + player.h / 2, 36, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = "#3b82f6";
+    ctx.beginPath();
+    ctx.arc(centerX, py + player.h / 2, 36, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (player.powerups.magnet > 0) {
+    ctx.save();
+    ctx.strokeStyle = "#eab308";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 6]);
+    ctx.globalAlpha = 0.4 + Math.sin(ambientTime * 6) * 0.15;
+    ctx.beginPath();
+    ctx.arc(centerX, py + player.h / 2, 44 + Math.sin(ambientTime * 5) * 4, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -2442,7 +2570,7 @@ function drawMotionTrails() {
     const cy = trail.y + PLAYER_H / 2 + 6;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-  ctx.globalAlpha = progress * 0.14;
+    ctx.globalAlpha = progress * 0.14;
     ctx.translate(cx, cy);
     ctx.rotate((trail.facingAngle || 0) * 0.18);
     const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 32);
@@ -2509,6 +2637,7 @@ function draw() {
   drawBackground();
   drawBins();
   drawItems();
+  drawPowerups();
   drawMotionTrails();
   drawHazards();
   drawExplosions();
@@ -2728,6 +2857,9 @@ audioBtn.addEventListener("click", () => {
   if (!audioMuted) {
     ensureAudio();
     playSound("pickup");
+    startBgm();
+  } else {
+    stopBgm();
   }
 });
 perfBtn.addEventListener("click", () => {
@@ -2780,3 +2912,269 @@ running = false;
 setLesson("Separe cada resíduo pela cor da lixeira.");
 updateHud();
 draw();
+
+const powerupTypes = [
+  { type: "speed", name: "Super Bota", color: "#22c55e", icon: "bolt" },
+  { type: "shield", name: "Escudo Ecológico", color: "#3b82f6", icon: "shield" }
+];
+
+function makePowerups(amount) {
+  const list = [];
+  for (let i = 0; i < amount; i += 1) {
+    const template = powerupTypes[rand(0, powerupTypes.length - 1)];
+    const position = randomOpenPosition(ITEM_SIZE, ITEM_SIZE);
+    list.push({
+      ...template,
+      ...position,
+      phase: Math.random() * Math.PI * 2,
+      pulseTimer: Math.random() * Math.PI
+    });
+  }
+  return list;
+}
+
+function applyPowerup(power) {
+  addParticles(power.x + ITEM_SIZE / 2, power.y + ITEM_SIZE / 2, power.color, 20, 1.4);
+  playSound("pickup");
+  addFloatingText(power.name, power.x, power.y - 12, power.color);
+
+  if (power.type === "speed") {
+    player.powerups.speed = 6.0;
+    setLesson("Power-up: Velocidade aumentada! Corra para entregar os resíduos.");
+  } else if (power.type === "shield") {
+    player.powerups.shield += 1;
+    setLesson("Power-up: Escudo ativo! Proteção contra a próxima bomba.");
+  } else if (power.type === "magnet") {
+    player.powerups.magnet = 8.0;
+    setLesson("Power-up: Ímã ativo! Resíduos próximos serão atraídos.");
+  }
+}
+
+function drawPowerups() {
+  powerups.forEach((power) => {
+    const bob = Math.sin(ambientTime * 4.5 + power.phase) * 6;
+    const pulse = 1 + Math.sin(ambientTime * 6 + power.pulseTimer) * 0.08;
+    ctx.save();
+    ctx.translate(power.x + ITEM_SIZE / 2, power.y + ITEM_SIZE / 2 + bob);
+    ctx.scale(pulse, pulse);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = 0.24 + Math.sin(ambientTime * 5 + power.phase) * 0.08;
+    const aura = ctx.createRadialGradient(0, 0, 2, 0, 0, ITEM_SIZE * 1.1);
+    aura.addColorStop(0, power.color);
+    aura.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, 0, ITEM_SIZE, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = power.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, ITEM_SIZE * 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.beginPath();
+    ctx.arc(0, 0, ITEM_SIZE * 0.38, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = power.color;
+    if (power.icon === "bolt") {
+      ctx.beginPath();
+      ctx.moveTo(-2, -10);
+      ctx.lineTo(6, -2);
+      ctx.lineTo(1, 0);
+      ctx.lineTo(5, 10);
+      ctx.lineTo(-5, 2);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fill();
+    } else if (power.icon === "shield") {
+      ctx.beginPath();
+      ctx.moveTo(-6, -8);
+      ctx.lineTo(6, -8);
+      ctx.lineTo(6, -1);
+      ctx.quadraticCurveTo(6, 6, 0, 10);
+      ctx.quadraticCurveTo(-6, 6, -6, -1);
+      ctx.closePath();
+      ctx.fill();
+    } else if (power.icon === "magnet") {
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = power.color;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(0, 2, 5, Math.PI, 0);
+      ctx.lineTo(5, -6);
+      ctx.moveTo(-5, 2);
+      ctx.lineTo(-5, -6);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(-6.5, -9, 3, 3);
+      ctx.fillRect(3.5, -9, 3, 3);
+    }
+
+    ctx.restore();
+  });
+}
+
+function playBgmStep() {
+  if (audioMuted || !audioCtx || paused || !running) return;
+  
+  const step = bgmStep % 16;
+  const chordIndex = Math.floor(step / 4);
+  
+  const bassFreqs = [130.81, 98.00, 110.00, 87.31];
+  const bassFreq = bassFreqs[chordIndex];
+  if (step % 2 === 0) {
+    playTone(bassFreq, 0.22, "triangle", 0.035);
+  }
+  
+  const chords = [
+    [261.63, 329.63, 392.00, 523.25], 
+    [293.66, 349.23, 392.00, 587.33], 
+    [220.00, 261.63, 329.63, 440.00], 
+    [261.63, 349.23, 440.00, 523.25] 
+  ];
+  
+  const chordNotes = chords[chordIndex];
+  const melodyNote = chordNotes[step % 4];
+  
+  if (step % 4 === 0 || step % 4 === 2 || (step % 4 === 1 && Math.random() > 0.5)) {
+    playTone(melodyNote, 0.15, "sine", 0.02);
+  }
+  
+  bgmStep += 1;
+}
+
+function startBgm() {
+  stopBgm();
+  if (audioMuted) return;
+  bgmStep = 0;
+  bgmIntervalId = setInterval(playBgmStep, 240);
+}
+
+function stopBgm() {
+  if (bgmIntervalId) {
+    clearInterval(bgmIntervalId);
+    bgmIntervalId = null;
+  }
+}
+
+const quizQuestions = [
+  {
+    q: "Onde devem ser descartadas pilhas e baterias velhas?",
+    options: [
+      "No lixo comum reciclável (lixeira azul/vermelha)",
+      "Em postos de coleta especiais ou Ecopontos (PEVs)",
+      "No lixo doméstico orgânico comum"
+    ],
+    correct: 1,
+    tip: "Pilhas e baterias contêm metais pesados tóxicos. Devem ser descartadas apenas nos coletores específicos."
+  },
+  {
+    q: "Qual lixeira é usada para descartar garrafas de plástico de água?",
+    options: [
+      "Lixeira Vermelha (Plástico)",
+      "Lixeira Verde (Vidro)",
+      "Lixeira Azul (Papel)"
+    ],
+    correct: 0,
+    tip: "Lembre-se de sempre esvaziar a garrafa antes do descarte para facilitar o trabalho de reciclagem!"
+  },
+  {
+    q: "Por que o lixo eletrônico (celulares, PCs) não deve ir para o lixo comum?",
+    options: [
+      "Porque o plástico dele não é reciclável",
+      "Porque ocupa muito espaço nos aterros sanitários",
+      "Porque possui chumbo, mercúrio e outros metais pesados tóxicos"
+    ],
+    correct: 2,
+    tip: "Esses componentes químicos podem infiltrar e contaminar o solo e os lençóis freáticos se jogados no lixo comum."
+  },
+  {
+    q: "O que fazer com uma caixa de pizza com restos de gordura?",
+    options: [
+      "Descartar na lixeira de papel comum (Azul)",
+      "Lavar a caixa com detergente antes do descarte",
+      "Descartar no lixo orgânico/rejeitos, pois a gordura impede a reciclagem"
+    ],
+    correct: 2,
+    tip: "A gordura impregna nas fibras do papel e estraga todo o lote de reciclagem. Descarte apenas a parte limpa!"
+  },
+  {
+    q: "Qual é o principal objetivo dos PEVs (Ecopontos) de Araçatuba?",
+    options: [
+      "Servir de depósito para lixo diário das casas",
+      "Receber entulhos, móveis volumosos, galhos e eletrônicos para descarte correto",
+      "Vender os recicláveis direto para indústrias"
+    ],
+    correct: 1,
+    tip: "Ecopontos são essenciais para evitar o descarte ilegal em beiras de estradas e rios da nossa região."
+  }
+];
+
+function startQuiz(callback) {
+  const question = quizQuestions[rand(0, quizQuestions.length - 1)];
+  
+  overlay.innerHTML = `
+    <div class="quiz-container">
+      <span class="quiz-badge">Desafio Eco-Tech</span>
+      <h3 class="quiz-question">${question.q}</h3>
+      <div class="quiz-options">
+        ${question.options.map((opt, i) => `
+          <button class="quiz-option-btn" data-index="${i}" type="button">${opt}</button>
+        `).join("")}
+      </div>
+      <p id="quizFeedback" class="quiz-feedback hidden"></p>
+      <button id="quizNextBtn" class="hidden" type="button">Continuar</button>
+    </div>
+  `;
+  overlay.classList.remove("hidden");
+  
+  const optionBtns = overlay.querySelectorAll(".quiz-option-btn");
+  const feedbackEl = overlay.querySelector("#quizFeedback");
+  const nextBtn = overlay.querySelector("#quizNextBtn");
+  
+  let answered = false;
+  
+  optionBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (answered) return;
+      answered = true;
+      const selectedIndex = Number(btn.dataset.index);
+      
+      optionBtns.forEach((b) => {
+        b.disabled = true;
+        const idx = Number(b.dataset.index);
+        if (idx === question.correct) {
+          b.classList.add("correct");
+        } else if (idx === selectedIndex) {
+          b.classList.add("incorrect");
+        }
+      });
+      
+      if (selectedIndex === question.correct) {
+        score += 200;
+        playSound("success");
+        feedbackEl.innerHTML = `🌟 <strong>Correto!</strong> Você ganhou +200 pontos de bônus.<br><span class="quiz-tip">${question.tip}</span>`;
+        feedbackEl.className = "quiz-feedback correct-text";
+      } else {
+        playSound("error");
+        feedbackEl.innerHTML = `❌ <strong>Incorreto.</strong><br><span class="quiz-tip">${question.tip}</span>`;
+        feedbackEl.className = "quiz-feedback incorrect-text";
+      }
+      
+      feedbackEl.classList.remove("hidden");
+      nextBtn.classList.remove("hidden");
+      updateHud();
+    });
+  });
+  
+  nextBtn.addEventListener("click", () => {
+    callback();
+  });
+}
