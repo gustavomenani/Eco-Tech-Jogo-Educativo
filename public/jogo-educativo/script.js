@@ -2108,10 +2108,20 @@ function drawPlayerFast() {
   const phase = player.walkCycle;
   const walk = player.walking ? 1 : 0;
   const stride = Math.sin(phase) * walk;
+  const oppositeStride = Math.sin(phase + Math.PI) * walk;
   const px = player.x;
-  const py = player.y + (player.walking ? Math.abs(Math.sin(phase)) * -1.5 : 0);
+  const py = player.y + (player.walking ? Math.abs(Math.sin(phase)) * -2 : 0);
+  const sideFacing = player.facing === "left" || player.facing === "right";
+  const backFacing = player.facing === "up";
+  const faceAlpha = backFacing ? 0 : 1;
+  const backAlpha = backFacing ? 1 : 0;
+  const faceOffset = player.facing === "left" ? -2.2 : player.facing === "right" ? 2.2 : 0;
+  const lean = player.visualLean;
+  const turn = player.visualTurn;
+  const alpha = player.invincible > 0 ? (Math.floor(ambientTime * 14) % 2 === 0 ? 0.22 : 0.76) : 1;
   const centerX = px + player.w / 2;
-  const alpha = player.invincible > 0 ? 0.55 : 1;
+  const hipY = py + 39;
+  const shoulderY = py + 23;
 
   ctx.save();
   ctx.globalAlpha = alpha;
